@@ -1,56 +1,35 @@
 package edu.jhu.clueless.network;
 
-import org.java_websocket.server.WebSocketServer;
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import java.net.InetSocketAddress;
-import edu.jhu.clueless.interfaces.IMessageHandler;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class ClueServer extends WebSocketServer {
 
-    private int port;
-    private IMessageHandler messageHandler;
+// Open a server socket on a specified port, accept incoming client connections, and handle each connection in a separate thread using a thread pool.
 
-    public ClueServer(int port) {
-        super(new InetSocketAddress(port));
+public class ClientHandler {
+    private final int port;
+    private boolean running = false;
+    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+
+    public ClientHandler(int port) {
         this.port = port;
-        this.messageHandler = new ClueMessageHandler; 
     }
 
-    @Override
-    public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        System.out.println("New connection from " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
+    public void start(){
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            running = true;
+            System.out.println("Server listening on port " + port);
+
+            while (running) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
+                threadPool.execute(new ClientConnection(clientSocket));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-
-    @Override
-    public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        System.out.println("Closed connection to " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
-    }
-
-    @Override
-    public void onMessage(WebSocket conn, String message) {
-        System.out.println("Message from " + conn.getRemoteSocketAddress().getAddress().getHostAddress() + ": " + message);
-        // Handle incoming messages here
-    }
-
-    @Override
-    public void onError(WebSocket conn, Exception ex) {
-        System.err.println("Error from " + (conn != null ? conn.getRemoteSocketAddress().getAddress().getHostAddress() : "unknown") + ": " + ex.getMessage());
-    }
-
-    @Override
-    public void onStart() {
-        System.out.println("Server started on port " + port);
-    }
-
-    public static void main(String[] args) {
-        int port = 8080; // Default port
-        ClueServer server = new ClueServer(port);
-        server.start();
-        System.out.println("ClueServer started on port: " + server.getPort());
-    }
-}
-
-
-
 }

@@ -1,11 +1,14 @@
 package edu.jhu.clueless;
 
 // App.java
+// Starts server by initializing ClueServer and calling start()
 
 public class App 
 {
     public static void main( String[] args )
     {
-        ClueServer server = new ClueServer(8080);
+        int port = 8080; // default port
+        ClueServer server = new ClueServer(port);
+        server.start();
     }
 }
