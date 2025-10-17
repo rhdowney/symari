@@ -4,3 +4,8 @@
 ### MAVEN ###
 target/
 
+### CLUELESS CLIENT (REACT) ###
+clueless-client/node_modules/
+clueless-client/dist/
+clueless-client/.env.local
+clueless-client/.DS_Store
