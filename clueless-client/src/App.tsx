@@ -1,11 +1,11 @@
 import React from 'react'
 import './App.css'
-import HostLobby from './pages/HostLobby'
+import GameBoardPage from './pages/GameBoardPage'
 
 const App: React.FC = () => {
   return (
     <div>
-      <HostLobby />
+      <GameBoardPage />
     </div>
   )
 }
