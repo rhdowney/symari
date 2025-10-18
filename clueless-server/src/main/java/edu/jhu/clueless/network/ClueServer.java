@@ -1,35 +1,35 @@
 package edu.jhu.clueless.network;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+import java.io.*;
+import java.net.*;
+import java.util.concurrent.*;
+import edu.jhu.clueless.util.JsonUtil;
 
 // Open a server socket on a specified port, accept incoming client connections, and handle each connection in a separate thread using a thread pool.
 
-public class ClientHandler {
+public class ClueServer {
     private final int port;
-    private boolean running = false;
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ExecutorService pool = Executors.newCachedThreadPool();
 
-    public ClientHandler(int port) {
+    public ClueServer(int port) {
         this.port = port;
     }
 
     public void start(){
+        System.out.println("[SERVER] Starting on port " + port + "...");
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            running = true;
-            System.out.println("Server listening on port " + port);
-
-            while (running) {
+            while(true){
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
-                threadPool.execute(new ClientConnection(clientSocket));
+                System.out.println("[SERVER] New Client connected: " + clientSocket.getInetAddress());
+                pool.execute(new ClientHandler(clientSocket));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            
+        } catch (IOException e){
+            System.err.println("[SERVER] Error: " + e.getMessage());
         }
+    }
+    public static void main(String[] args) {
+        int port = 5000;
+        new ClueServer(port).start();
     }
 }

@@ -1,14 +1,19 @@
 package edu.jhu.clueless.network.dto;
 
 public class ServerMessage {
-    private String status;
-    private String response;
+    private String type;
+    private String message;
 
-    public ServerMessage(String status, String response) {
-        this.status = status;
-        this.response = response;
+    public ServerMessage() {}
+
+    public ServerMessage(String type, String message) {
+        this.type = type;
+        this.message = message;
     }
 
-    public String getStatus() { return status; }
-    public String getResponse() { return response; }
+    public String getType() { return type; }
+    public String getMessage() { return message; }
+
+    public void setType(String type) { this.type = type; }
+    public void setMessage(String message) { this.message = message; }
 }

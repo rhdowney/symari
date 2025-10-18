@@ -1,16 +1,13 @@
 package edu.jhu.clueless.network;
 
-import com.google.gson.Gson;
 import edu.jhu.clueless.network.dto.ClientMessage;
 import edu.jhu.clueless.network.dto.ServerMessage;
 import edu.jhu.clueless.util.JsonUtil;
-
 import java.io.*;
-import java.net.Socket;
+import java.net.*;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
-    private final Gson gson = new Gson();
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -21,17 +18,19 @@ public class ClientHandler implements Runnable {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-            String input;
-            while ((input = in.readLine()) != null) {
-                ClientMessage msg = gson.fromJson(input, ClientMessage.class);
-                System.out.println("Received: " + msg);
+            String line;
+            while ((line = in.readLine()) != null) {
+                System.out.println("[SERVER] Received: " + line);
 
-                // simple echo reply
-                ServerMessage reply = new ServerMessage("ACK", "Received your message");
-                out.println(JsonUtil.toJson(reply));
+                // Parse incoming JSON
+                ClientMessage message = JsonUtil.fromJson(line, ClientMessage.class);
+
+                // Build response
+                ServerMessage response = new ServerMessage("ack", "Message received: " + message.getContent());
+                out.println(JsonUtil.toJson(response));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("[CLIENT] Disconnected: " + e.getMessage());
         }
     }
 }

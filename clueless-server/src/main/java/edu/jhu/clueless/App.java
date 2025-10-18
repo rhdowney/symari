@@ -1,5 +1,7 @@
 package edu.jhu.clueless;
 
+import edu.jhu.clueless.network.ClueServer;
+
 // App.java
 // Starts server by initializing ClueServer and calling start()
 
