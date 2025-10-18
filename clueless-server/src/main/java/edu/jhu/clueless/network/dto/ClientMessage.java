@@ -14,7 +14,6 @@ public class ClientMessage {
     public String getType() { return type; }
     public String getContent() { return content; }
 
-    @Override
-    public String toString() {
-        return "ClientMessage{type='" + type + "', content='" + content + "'}";
+    public void setType(String type) { this.type = type; }
+    public void setContent(String content) { this.content = content; }
 }
