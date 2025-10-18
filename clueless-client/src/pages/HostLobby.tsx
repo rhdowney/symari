@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import mockWebSocket from '../network/ws';
+import { useNavigate } from 'react-router-dom';
+import { useWebSocket } from '../context';
 import type { WSMessage, WSMessageType } from '../network/ws';
 import CharacterGrid from '../components/lobby/CharacterGrid';
 import InvitePanel from '../components/lobby/InvitePanel';
@@ -13,6 +14,8 @@ import {
 
 //== Main Page Component ==//
 const HostLobbyPage: React.FC = () => {
+  const navigate = useNavigate();
+  const ws = useWebSocket();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const [pendingAction, setPendingAction] = useState(false);
@@ -39,34 +42,40 @@ const HostLobbyPage: React.FC = () => {
       stateRef.current = gameData;
       setPendingAction(false); // Action is confirmed, re-enable UI
       
+      // Handle navigation when game starts
+      if (gameData.status === 'in-game') {
+        console.log('Game started! Host navigating to game board');
+        navigate('/gameboard');
+      }
+      
       setGameState(gameData);
     };
 
-    mockWebSocket.on('GAME_STATE_UPDATE', handleGameState);
+    ws.on('GAME_STATE_UPDATE', handleGameState);
     
     // Request initial state and announce host joining
     const joinMsg: WSMessage = { type: 'JOIN_GAME', gameId: roomCode, playerId: mockUser.id, payload: {} };
-    mockWebSocket.send(joinMsg);
-    mockWebSocket.send({ type: 'REQUEST_INITIAL_STATE', gameId: roomCode, playerId: mockUser.id, payload: {} });
+    ws.send(joinMsg);
+    ws.send({ type: 'REQUEST_INITIAL_STATE', gameId: roomCode, playerId: mockUser.id, payload: {} });
 
     // Fallback: if no state after 1.5s, request again
     const retryTimer = window.setTimeout(() => {
       if (!stateRef.current) {
-        mockWebSocket.send({ type: 'REQUEST_INITIAL_STATE', gameId: roomCode, playerId: mockUser.id, payload: {} });
+        ws.send({ type: 'REQUEST_INITIAL_STATE', gameId: roomCode, playerId: mockUser.id, payload: {} });
       }
     }, 1500);
 
     // Cleanup function to remove event listeners
     return () => {
       window.clearTimeout(retryTimer);
-      mockWebSocket.off('GAME_STATE_UPDATE', handleGameState);
+      ws.off('GAME_STATE_UPDATE', handleGameState);
     };
-  }, []);
+  }, [navigate, ws]);
 
   const sendMessage = (type: WSMessageType, payload: Record<string, unknown> = {}) => {
     if (!currentUser) return;
     const msg: WSMessage = { type, gameId: roomCode, playerId: currentUser.id, payload };
-    mockWebSocket.send(msg);
+    ws.send(msg);
   };
 
   const handleSelectCharacter = (character: Character) => {

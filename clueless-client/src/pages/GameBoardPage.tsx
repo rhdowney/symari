@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { GameState, CurrentUser } from '../types/game';
 import type { WSMessageType } from '../network/ws';
 import { getValidMoves, canMakeSuggestion, canMakeAccusation } from '../utils/gameLogic';
+import { useWebSocket } from '../context';
 
 import ToastNotification from '../components/GameBoard/ToastNotification';
 import BoardGrid from '../components/GameBoard/BoardGrid';
@@ -10,180 +11,288 @@ import HandPanel from '../components/GameBoard/HandPanel';
 import EventFeed from '../components/GameBoard/EventFeed';
 import MoveSelectionModal from '../components/GameBoard/MoveSelectionModal';
 
+// Constants for better maintainability
+const LAYOUT_CONFIG = {
+  BOARD_HEIGHT_PERCENT: '60%',
+  BOTTOM_PANEL_HEIGHT_PERCENT: '30%',
+  DEFAULT_GAME_ID: 'CLUE-2024'
+} as const;
+
+// Type guards for better type safety
+const isValidGameState = (state: unknown): state is GameState => {
+  if (!state || typeof state !== 'object') return false;
+  const gameState = state as Record<string, unknown>;
+  return (
+    Array.isArray(gameState.players) &&
+    Array.isArray(gameState.playerTokens) &&
+    typeof gameState.currentTurnPlayerId === 'string'
+  );
+};
+
 //== Main Page Component ==//
 const GameBoardPage: React.FC = () => {
+  const ws = useWebSocket();
+
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [showMoveModal, setShowMoveModal] = useState(false);
-  
-  // Step 1: Test basic state setup without complex logic
-  useEffect(() => {
-    console.log('useEffect running...');
-    const mockUser: CurrentUser = { id: `user-${Date.now()}`, name: 'New Player' };
-    setCurrentUser(mockUser);
-    console.log('currentUser set:', mockUser);
+
+  // Step 2: Memoized sendMessage function (must be defined first)
+  const sendMessage = useCallback((type: WSMessageType, payload: Record<string, unknown> = {}) => {
+    if (!currentUser || !gameState) {
+      console.warn('Cannot send message: missing user or game state');
+      return;
+    }
     
-    // Restore full mock game state
-    const mockGameState: GameState = {
-      hostId: mockUser.id,
-      status: 'in-game',
-      players: [
-        {
-          id: mockUser.id,
-          name: 'New Player',
-          characterId: 'SCARLET',
-          characterName: 'Miss Scarlet',
-          isReady: true,
-          hand: [
-            { id: 'card1', name: 'Candlestick', type: 'WEAPON' },
-            { id: 'card2', name: 'Study', type: 'ROOM' },
-            { id: 'card3', name: 'Colonel Mustard', type: 'SUSPECT' }
-          ]
-        },
-        {
-          id: 'player-2',
-          name: 'Player 2',
-          characterId: 'MUSTARD',
-          characterName: 'Colonel Mustard',
-          isReady: true,
-          hand: []
-        }
-      ],
-      playerTokens: [
-        { playerId: mockUser.id, characterId: 'SCARLET', locationId: 'STUDY' },
-        { playerId: 'player-2', characterId: 'MUSTARD', locationId: 'HALL_LOUNGE' }
-      ],
-      currentTurnPlayerId: mockUser.id,
-      suggestion: null,
-      winner: null,
-      eventFeed: [
-        'Game started!',
-        'Miss Scarlet entered the Study',
-        'Colonel Mustard is in the Hall-Lounge hallway'
-      ],
-      gamePhase: 'MOVING'
-    };
-    
-    setGameState(mockGameState);
-    console.log('gameState set:', mockGameState);
-  }, []);
-
-  if (!gameState || !currentUser) {
-    console.log('Still loading...', { gameState, currentUser });
-    return (
-      <div className="bg-gray-900 min-h-screen flex items-center justify-center text-white">
-        <p>Loading Game...</p>
-      </div>
-    );
-  }
-
-  console.log('Rendering main game with:', { gameState, currentUser });
-
-  // Add proper handler functions
-  const sendMessage = (type: WSMessageType, payload: Record<string, unknown> = {}) => {
-    if (!currentUser) return;
     console.log('Sending message:', { type, payload });
-    // Mock WebSocket send - just log for now
-  };
+    ws.send({
+      type: type,
+      gameId: gameState.id || LAYOUT_CONFIG.DEFAULT_GAME_ID,
+      playerId: currentUser.id,
+      payload: payload
+    });
+  }, [ws, currentUser, gameState]);
 
-  const getCurrentPlayerLocation = (): string | null => {
+  // Memoized helper functions for performance
+  const getCurrentPlayerLocation = useCallback((): string | null => {
     if (!gameState || !currentUser) return null;
     const playerToken = gameState.playerTokens.find(t => t.playerId === currentUser.id);
     return playerToken?.locationId || null;
-  };
+  }, [gameState, currentUser]);
 
-  const handleLocationClick = (locationId: string) => {
+  // Memoized calculations for performance
+  const currentLocation = useMemo(() => {
+    return getCurrentPlayerLocation();
+  }, [getCurrentPlayerLocation]);
+
+  const validMoves = useMemo(() => {
+    return currentLocation ? getValidMoves(currentLocation, gameState?.playerTokens || []) : [];
+  }, [currentLocation, gameState?.playerTokens]);
+
+  const gameLogicValues = useMemo(() => {
+    if (!gameState || !currentUser) {
+      return {
+        isMyTurn: false,
+        myCards: [],
+        canSuggest: false
+      };
+    }
+    
+    const isMyTurn = gameState.currentTurnPlayerId === currentUser.id;
+    const myCards = gameState.players.find(p => p.id === currentUser.id)?.hand || [];
+    const canSuggest = currentLocation ? canMakeSuggestion(currentLocation, validMoves) : false;
+    
+    return {
+      isMyTurn,
+      myCards,
+      canSuggest
+    };
+  }, [gameState, currentUser, currentLocation, validMoves]);
+
+  // Memoized event handlers
+  const handleLocationClick = useCallback((locationId: string) => {
     console.log('Location clicked:', locationId);
-    const currentLocation = getCurrentPlayerLocation();
-    if (!currentLocation || !gameState) {
-      console.warn('Cannot handle location click: missing current location or game state');
+    if (!currentLocation) {
+      console.warn('Cannot handle location click: no current location');
       return;
     }
 
-    const validMoves = getValidMoves(currentLocation, gameState.playerTokens);
     if (validMoves.includes(locationId)) {
       setSelectedLocation(locationId);
       console.log('Valid move selected:', locationId);
     } else {
       console.log('Invalid move attempted:', locationId, 'Valid moves:', validMoves);
     }
-  };
+  }, [currentLocation, validMoves]);
 
-  const handleMove = () => {
+  const handleMove = useCallback(() => {
     if (selectedLocation) {
       sendMessage('MOVE_REQUEST', { targetLocationId: selectedLocation });
       setSelectedLocation(null);
     } else {
-      const currentLocation = getCurrentPlayerLocation();
-      if (currentLocation && gameState) {
-        const validMoves = getValidMoves(currentLocation, gameState.playerTokens);
-        if (validMoves.length > 0) {
-          setShowMoveModal(true);
-        }
+      if (currentLocation && validMoves.length > 0) {
+        setShowMoveModal(true);
       }
     }
-  };
+  }, [selectedLocation, currentLocation, validMoves, sendMessage]);
 
-  const handleSelectMove = (locationId: string) => {
+  const handleSelectMove = useCallback((locationId: string) => {
     sendMessage('MOVE_REQUEST', { targetLocationId: locationId });
     setShowMoveModal(false);
-  };
+  }, [sendMessage]);
 
-  const handleSuggest = () => {
-    const currentLocation = getCurrentPlayerLocation();
-    if (!currentLocation || !gameState) return;
+  const handleSuggest = useCallback(() => {
+    if (!currentLocation) return;
     
-    const validMoves = getValidMoves(currentLocation, gameState.playerTokens);
-    if (canMakeSuggestion(currentLocation, validMoves)) {
-      // Mock suggestion - in real app this would open a modal to select cards
+    if (gameLogicValues.canSuggest) {
+      // In a real app this would open a modal to select cards
+      console.log('Opening suggestion modal...');
+      // Mock sending suggestion for now:
       sendMessage('MAKE_SUGGESTION', { suspectId: 'MUSTARD', weaponId: 'WRENCH', roomId: currentLocation });
     }
-  };
+  }, [currentLocation, gameLogicValues.canSuggest, sendMessage]);
   
-  const handleAccuse = () => {
+  const handleAccuse = useCallback(() => {
     if (canMakeAccusation()) {
-      // Mock accusation - in real app this would open a modal to select cards
+      // In a real app this would open a modal to select cards
+      console.log('Opening accusation modal...');
+      // Mock sending accusation for now:
       sendMessage('MAKE_ACCUSE', { suspectId: 'MUSTARD', weaponId: 'WRENCH', roomId: 'STUDY' });
     }
-  };
+  }, [sendMessage]);
+  
+  // Step 1: Subscribe to game updates and set up the user
+  useEffect(() => {
+    // Enhanced user identity management with error handling
+    let user: CurrentUser;
+    try {
+      const storedUserId = sessionStorage.getItem('clue_user');
+      const userId = storedUserId && storedUserId.trim() ? storedUserId : `user-${Date.now()}`;
+      
+      user = { 
+        id: userId, 
+        name: sessionStorage.getItem('clue_user_name') || 'Player' 
+      };
+      
+      // Store the user ID for future sessions
+      sessionStorage.setItem('clue_user', userId);
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Error managing user session:', error);
+      // Fallback user creation
+      user = { 
+        id: `user-${Date.now()}`, 
+        name: 'Player' 
+      };
+      setCurrentUser(user);
+    }
 
-  // Calculate game logic values
-  const isMyTurn = gameState.currentTurnPlayerId === currentUser.id;
-  const myCards = gameState.players.find(p => p.id === currentUser.id)?.hand || [];
-  const currentLocation = getCurrentPlayerLocation();
-  const validMoves = currentLocation ? getValidMoves(currentLocation, gameState.playerTokens) : [];
-  const canSuggest = currentLocation ? canMakeSuggestion(currentLocation, validMoves) : false;
+    // Enhanced error handling for game state updates
+    const handleGameState = (newGameState: unknown) => {
+      try {
+        // Type validation for better type safety
+        if (!newGameState || typeof newGameState !== 'object') {
+          console.error('Invalid game state received: not an object');
+          return;
+        }
+        
+        const gameState = newGameState as GameState;
+        
+        // Use type guard for validation
+        if (!isValidGameState(newGameState)) {
+          console.error('Invalid game state: failed type validation');
+          return;
+        }
+        
+        console.log('GameBoard received valid state update:', gameState);
+        setGameState(gameState);
+      } catch (error) {
+        console.error('Error processing game state update:', error);
+      }
+    };
+    
+    ws.on('GAME_STATE_UPDATE', handleGameState);
+
+    // Request the initial state for the game board
+    ws.send({ 
+      type: 'REQUEST_INITIAL_STATE', 
+      gameId: LAYOUT_CONFIG.DEFAULT_GAME_ID,
+      playerId: user.id, 
+      payload: {}
+    });
+
+    return () => {
+      ws.off('GAME_STATE_UPDATE', handleGameState);
+    };
+  }, [ws]);
+
+  // Separate useEffect for fallback game state
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const fallbackTimer = setTimeout(() => {
+      if (!gameState) {
+        console.log('Creating fallback game state...');
+        const fallbackGameState: GameState = {
+          id: 'fallback-game',
+          hostId: currentUser.id,
+          status: 'in-game',
+          players: [
+            {
+              id: currentUser.id,
+              name: currentUser.name,
+              characterId: 'SCARLET',
+              characterName: 'Miss Scarlet',
+              isReady: true,
+              hand: [
+                { id: 'card1', name: 'Candlestick', type: 'WEAPON' },
+                { id: 'card2', name: 'Study', type: 'ROOM' }
+              ]
+            }
+          ],
+          playerTokens: [
+            { playerId: currentUser.id, characterId: 'SCARLET', locationId: 'STUDY' }
+          ],
+          currentTurnPlayerId: currentUser.id,
+          suggestion: null,
+          winner: null,
+          eventFeed: [
+            'Game started!',
+            'Miss Scarlet entered the Study'
+          ],
+          gamePhase: 'MOVING'
+        };
+        setGameState(fallbackGameState);
+      }
+    }, 2000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [currentUser, gameState]);
+
+
+
+  if (!gameState || !currentUser) {
+    return (
+      <div className="bg-gray-900 min-h-screen flex items-center justify-center text-white">
+        <div className="text-center">
+          <p className="text-xl mb-4">Loading Game Board...</p>
+          <p className="text-gray-400">Setting up game state...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // == Optimized functions are defined above ==
+
+
 
   return (
     <div className="bg-gray-900 h-screen text-white p-2 flex flex-col overflow-hidden">
       <div className="w-full mx-auto flex flex-col h-full">
         <ToastNotification gameState={gameState} currentUser={currentUser} />
         
-        {/* Top - Board Grid with constrained height */}
-        <div className="flex items-center justify-center" style={{ height: '60%' }}>
+        <div className="flex items-center justify-center" style={{ height: LAYOUT_CONFIG.BOARD_HEIGHT_PERCENT }}>
           <BoardGrid 
             gameState={gameState} 
             onCellClick={handleLocationClick}
           />
         </div>
         
-        {/* Middle - ActionBar */}
         <div className="flex-shrink-0 my-2">
           <ActionBar 
-            isMyTurn={isMyTurn}
+            isMyTurn={gameLogicValues.isMyTurn}
             onMove={handleMove}
             onSuggest={handleSuggest}
             onAccuse={handleAccuse}
-            canMove={validMoves.length > 0}
-            canSuggest={canSuggest}
+            canMove={validMoves.length > 0 || !!selectedLocation} // Can move if moves available OR one is selected
+            canSuggest={gameLogicValues.canSuggest}
             canAccuse={canMakeAccusation()}
           />
         </div>
         
-        {/* Bottom - HandPanel and EventFeed side by side with constrained height */}
-        <div className="flex gap-4 flex-shrink-0" style={{ height: '30%' }}>
-          <HandPanel cards={myCards} />
+        <div className="flex gap-4 flex-shrink-0" style={{ height: LAYOUT_CONFIG.BOTTOM_PANEL_HEIGHT_PERCENT }}>
+          <HandPanel cards={gameLogicValues.myCards} />
           <EventFeed events={gameState.eventFeed} />
         </div>
         

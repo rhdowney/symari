@@ -30,6 +30,7 @@ export interface Suggestion {
 }
 
 export interface GameState {
+  id: string;
   hostId: string;
   status: 'in-game' | 'finished';
   players: GamePlayer[];

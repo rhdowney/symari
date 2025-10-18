@@ -102,6 +102,32 @@ const mockWebSocket = (() => {
             emit('GAME_STATE_UPDATE', state);
           }
           break;
+        case 'START_GAME':
+          if (!state) return;
+          // Only allow host to start the game
+          if (msg.playerId === state.hostId) {
+            // Check if all players are ready
+            const allPlayersReady = state.players.length >= 2 && 
+                                   state.players.every(p => p.isReady && p.characterId);
+            
+            if (allPlayersReady) {
+              // Update game status to trigger navigation to GameBoard
+              state.status = 'in-game';
+              
+              // Add game start event to feed
+              const feed = state.eventFeed || [];
+              feed.unshift('Game started! Moving to game board...');
+              state.eventFeed = feed.slice(0, 20);
+              
+              console.log('[mock ws] Game started - status changed to in-game');
+              emit('GAME_STATE_UPDATE', state);
+            } else {
+              console.warn('[mock ws] Cannot start game - not all players ready');
+            }
+          } else {
+            console.warn('[mock ws] Only host can start the game');
+          }
+          break;
         case 'LEAVE_GAME':
           if (!state) return;
           {
