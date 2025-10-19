@@ -11,6 +11,13 @@ public class ClueServer {
     private final int port;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
+
+    // Added wire routing
+    private final MessageValidator validator = new MessageValidator();
+    private final MessageRouter router = new MessageRouter();
+    
+
+
     public ClueServer(int port) {
         this.port = port;
     }

@@ -1,19 +1,36 @@
 package edu.jhu.clueless.network.dto;
 
+import edu.jhu.clueless.network.MessageType;
+import java.util.Map;
+
 public class ClientMessage {
-    private String type;
-    private String content;
+    private MessageType type;
+    private String correlationId; // for request/response pairing
+    private String gameId;
+    private String playerId;
+    private Map<String, Object> payload; // message-specific data
 
     public ClientMessage() {}
 
-    public ClientMessage(String type, String content) {
+    public ClientMessage(MessageType type, String correlationId, String gameId, String playerId, Map<String, Object> payload) {
         this.type = type;
-        this.content = content;
+        this.correlationId = correlationId;
+        this.gameId = gameId;
+        this.playerId = playerId;
+        this.payload = payload;
     }
 
-    public String getType() { return type; }
-    public String getContent() { return content; }
+    public MessageType getType() { return type; }
+    public void setType(MessageType type) { this.type = type; }
 
-    public void setType(String type) { this.type = type; }
-    public void setContent(String content) { this.content = content; }
-}
+    public String getCorrelationId() { return correlationId; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+
+    public String getGameId() { return gameId; }
+    public void setGameId(String gameId) { this.gameId = gameId; }
+
+    public String getPlayerId() { return playerId; }
+    public void setPlayerId(String playerId) { this.playerId = playerId; }
+
+    public Map<String, Object> getPayload() { return payload; }
+    public void setPayload(Map<String, Object> payload) { this.payload = payload; }

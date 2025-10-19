@@ -1,43 +1,53 @@
 package edu.jhu.clueless.network;
 
-import edu.jhu.clueless.engine.GameEngine;
-import com.google.gson.Gson;
-
+import edu.jhu.clueless.network.dto.ClientMessage;
+import java.io.PrintWriter;
 
 public class MessageRouter {
+    private final MessageValidator validator;
 
-    private GameEngine engine; 
-    private Gson gson = new Gson();
-
-    public MessageRouter(GameEngine engine){
-        this.engine = engine;
+    public MessageRouter(MessageValidator validator) {
+        this.validator = validator;
     }
 
-    // entry point for JSON messages
+    // Minimal routing stub: validate, branch by type (TODO), and reply with a simple JSON.
+    public void route(String clientId, ClientMessage msg, PrintWriter out) {
+        try {
+            validator.validate(msg);
 
-    public void handleMessage(String json){
-        Map<String, Object> msg = gson.fromJson(json,Map.class);
-        String type = (String) msg.get("type");
-
-        switch(type){
-            case "move":
-                engine.handleMove(
-                    (String) msg.get("player"),
-                    (String) msg.get("room")
-                );
-                break;
-
-            case "suggest":
-                engine.handleSuggestion(
-                    (String) msg.get("player"),
-                    (String) msg.get("suspect"),
-                    (String) msg.get("weapon"),
-                    (String) msg.get("room")
-                );
-                break;
-
-            default:
-                System.out.println("[ROUTER] Unknown message type: " + type);
+            switch (msg.getType()) {
+                // case MessageType.JOIN:
+                //     // TODO: call engine.addPlayer(...); write(out, responseJson);
+                //     break;
+                // case MessageType.MOVE:
+                //     // TODO: engine.handleMove(...); write(out, responseJson);
+                //     break;
+                // case MessageType.SUGGESTION:
+                //     // TODO
+                //     break;
+                // case MessageType.ACCUSATION:
+                //     // TODO
+                //     break;
+                // case MessageType.CHAT:
+                //     // TODO: broadcast to others
+                //     break;
+                default:
+                    write(out, "{\"status\":\"ok\",\"echoType\":\""
+                            + (msg.getType() != null ? msg.getType().name() : "UNKNOWN") + "\"}");
+            }
+        } catch (IllegalArgumentException ex) {
+            write(out, "{\"status\":\"error\",\"reason\":\"" + escape(ex.getMessage()) + "\"}");
+        } catch (Exception ex) {
+            write(out, "{\"status\":\"error\",\"reason\":\"UNEXPECTED\"}");
         }
+    }
+
+    private void write(PrintWriter out, String json) {
+        out.println(json);
+        out.flush();
+    }
+
+    private String escape(String s) {
+        return s == null ? "" : s.replace("\"", "\\\"");
     }
 }
