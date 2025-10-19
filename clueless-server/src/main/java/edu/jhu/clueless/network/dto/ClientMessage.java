@@ -5,12 +5,12 @@ import java.util.Map;
 
 public class ClientMessage {
     private MessageType type;
-    private String correlationId; // for request/response pairing
+    private String correlationId;
     private String gameId;
     private String playerId;
-    private Map<String, Object> payload; // message-specific data
+    private Map<String, Object> payload;
 
-    public ClientMessage() {}
+    public ClientMessage() { }
 
     public ClientMessage(MessageType type, String correlationId, String gameId, String playerId, Map<String, Object> payload) {
         this.type = type;
@@ -34,3 +34,4 @@ public class ClientMessage {
 
     public Map<String, Object> getPayload() { return payload; }
     public void setPayload(Map<String, Object> payload) { this.payload = payload; }
+}

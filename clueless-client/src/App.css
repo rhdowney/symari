@@ -40,3 +40,41 @@
 .read-the-docs {
   color: #888;
 }
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 160px);
+  grid-template-rows: repeat(3, 120px);
+  gap: 12px;
+  padding: 8px;
+  background: #1f1f1f;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.tile {
+  background: #2b2b2b;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 8px;
+  color: #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms ease, transform 80ms ease;
+}
+.tile:hover { border-color: #6aa9ff; transform: translateY(-1px); }
+.tile-name { font-weight: 700; font-size: 14px; letter-spacing: 0.5px; }
+.tile-occupants { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.chip {
+  background: #0f6;
+  color: #041;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 1px solid #0a4;
+}

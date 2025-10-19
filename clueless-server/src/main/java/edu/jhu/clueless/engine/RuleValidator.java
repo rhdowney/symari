@@ -1,23 +1,27 @@
 package edu.jhu.clueless.engine;
 
 public class RuleValidator {
-    
-    // Check if a player can move to the requested room
-    public static boolean canMove(Player player, Room targetRoom){
-        if(player.getCurrentRoom() == null) return false;
-        return player.getCurrentRoom().getConnectedRooms().contains(targetRoom); 
+
+    // True if targetRoom is adjacent to player's current room.
+    // For first placement (no current room), allow move.
+    public static boolean canMove(Player player, Room targetRoom) {
+        if (player == null || targetRoom == null) return false;
+        Room current = player.getCurrentRoom();
+        if (current == null) return true; // initial placement handled by engine/router
+        return current.getConnectedRooms().contains(targetRoom);
     }
 
-    // Check if a player can make a suggestion - must be in a room
-
-    public static boolean canSuggest(Player player){ 
-        return player.getCurrentRoom() != null; 
+    // Player must be in a room to suggest
+    public static boolean canSuggest(Player player) {
+        return player != null && player.getCurrentRoom() != null;
     }
 
-    // Check if accusation format is valid - simple stub for now
-
+    // Simple format check for accusation fields
     public static boolean isValidAccusation(String suspect, String weapon, String room) {
-        return suspect != null && weapon != null && room != null;
-    } 
+        return notBlank(suspect) && notBlank(weapon) && notBlank(room);
+    }
 
+    private static boolean notBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
 }
