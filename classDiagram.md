@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     %% Server / engine domain classes
     class Room {
@@ -140,3 +141,4 @@ classDiagram
     ClueServer --> MessageRouter : router
     WsBridgeServer ..> ServerMessage : builds/sends
     ServerMessage ..> Card : may carry card lists (payload)
+```
