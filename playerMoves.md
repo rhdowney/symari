@@ -1,0 +1,18 @@
+```mermaid
+sequenceDiagram
+
+participant Player
+participant Board
+participant Location
+
+Player->>Board: requestMove(location)
+alt not adjacent
+    Board-->>Player: move denied
+end
+Board->>Location: isFree
+alt not free
+    Location-->>Board: not free
+    Board-->>Player: move denied
+end
+Location-->>Board: free
+Board-->>Player: move completed
