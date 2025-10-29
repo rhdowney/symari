@@ -1,8 +1,10 @@
 ```mermaid
 sequenceDiagram
 
+box Client
 participant Player
 participant Board
+box Server
 participant Location
 
 Player->>Board: requestMove(location)
