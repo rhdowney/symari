@@ -7,10 +7,10 @@ participant Board
 participant ClientRouter
 end
 box rgb(20,40,20) Server 
-participant WsBridgeServer as Bridge
-participant GameEngine as Engine
+participant Bridge as WsBridgeServer
+participant Engine as GameEngine
 participant Location
-participant GameState as State
+participant State as GameState
 end
 
 Player->>Board: requestMove(location)
