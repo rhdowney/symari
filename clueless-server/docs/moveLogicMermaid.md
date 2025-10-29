@@ -16,7 +16,7 @@ sequenceDiagram
     participant P as Player
     participant R as Room
 
-    Note over C,CH: Connection already established (TCP).<br/>Messages are line-delimited JSON.
+    Note over C,CH: Connection already established (TCP).\nMessages are line-delimited JSON.
 
     C->>CH: JSON line: ClientMessage{ type: MOVE, correlationId, gameId, playerId, payload{ targetRoom } }
     CH->>MR: route(clientId, msg, out)
@@ -25,7 +25,6 @@ sequenceDiagram
         MV-->>MR: throws IllegalArgumentException
         MR-->>CH: ServerMessage.error("INVALID", reason)
         CH-->>C: JSON line (error)
-        return
     else valid
         MV-->>MR: ok
     end
@@ -35,7 +34,7 @@ sequenceDiagram
 
     MH->>GS: getPlayer(playerId)
     MH->>GS: getRoom(targetRoomName)
-    alt first placement (player.currentRoom == null)
+    alt first placement
         MH->>P: setCurrentRoom(targetRoom)
         MH->>R: addOccupant(player)
         MH-->>GE: { accepted: true, firstPlacement: true }
