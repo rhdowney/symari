@@ -4,8 +4,10 @@ sequenceDiagram
 box Client
 participant Player
 participant Board
+end
 box Server
 participant Location
+end
 
 Player->>Board: requestMove(location)
 alt not adjacent
