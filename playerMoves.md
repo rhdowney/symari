@@ -1,7 +1,7 @@
 ```mermaid
 sequenceDiagram
 
-box transparent Aqua Client
+box rgb(50,20,20) Client
 participant Player
 participant Board
 end
