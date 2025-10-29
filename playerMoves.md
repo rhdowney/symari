@@ -29,7 +29,8 @@ alt not free
     Board-->>Player: move denied
 end
 Location-->>Engine: free
-Engine-->>State: movePlayer(player,location)
+Engine->>State: movePlayer(player,location)
+State-->>Engine: move completed
 Engine-->>Bridge: move completed 
 Bridge-->>ClientRouter: move completed
 ClientRouter-->>Board: move completed
