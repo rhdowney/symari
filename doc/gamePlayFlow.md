@@ -44,7 +44,7 @@ suggest --> nextDisprove;
 nextDisprove --> suggestionDisproved;
 suggestionDisproved -->|yes| nextPlayerTurn;
 suggestionDisproved -->|no| doneDisproving;
-doneDisproving -->|yes| nextPlayerTurn;
+doneDisproving -->|yes| wantsToAccuse;
 doneDisproving -->|no| nextDisprove;
 wantsToAccuse -->|no| nextPlayerTurn;
 wantsToAccuse -->|yes| accuse;
