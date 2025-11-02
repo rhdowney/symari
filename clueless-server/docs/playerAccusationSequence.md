@@ -15,11 +15,11 @@ sequenceDiagram
     Note over C,CH: Client sends ACCUSATION JSON line
 
     C->>CH: ClientMessage(ACCUSATION)
-    CH->>MR: route(clientId,msg,out)
+    CH->>MR: route(clientId, msg, out)
     MR->>MV: validate(msg)
     alt invalid
         MV-->>MR: throws IllegalArgumentException
-        MR-->>CH: ServerMessage.error("INVALID", reason)
+        MR-->>CH: "ERROR: INVALID"
         CH-->>C: JSON line (error)
     else valid
         MV-->>MR: ok
@@ -29,18 +29,17 @@ sequenceDiagram
     GE->>AH: resolveAccusation(playerId, suspect, weapon, room)
     AH->>GS: compare with solution
     alt correct
-        AH-->>GE: { correct: true, solution: {...} }
+        AH-->>GE: result { correct: true, solution }
         GE-->>MR: result(correct:true, winner:playerId, solution)
-        MR-->>Subs: ServerMessage.ok("ACCUSATION_PUBLIC").withPayload({playerId, correct:true, solution})
-        MR-->>CH: ServerMessage.ok("ACCUSATION_RESULT").withCorrelationId(...).withPayload(result)  # private ack
-        MR-->>Subs: GameStateUpdate(final)
-        Note over MR,GS: finalize game, cleanup
+        MR-->>Subs: "ACCUSATION_PUBLIC {playerId, correct:true, solution}"
+        MR-->>CH: "ACCUSATION_RESULT (private)"
+        MR-->>Subs: "GameStateUpdate (final)"
+        Note over MR,GS: finalize game and cleanup
     else incorrect
-        AH-->>GE: { correct: false }
-        GE-->>MR: result(correct:false, eliminated:playerId, remainingPlayers: [...])
-        MR-->>Subs: ServerMessage.ok("ACCUSATION_PUBLIC").withPayload({playerId, correct:false})
-        MR-->>CH: ServerMessage.ok("ACCUSATION_RESULT").withCorrelationId(...).withPayload(result)
-        MR-->>Subs: GameStateUpdate(updated)
+        AH-->>GE: result { correct: false }
+        GE-->>MR: result(correct:false, eliminated:playerId, remainingPlayers)
+        MR-->>Subs: "ACCUSATION_PUBLIC {playerId, correct:false}"
+        MR-->>CH: "ACCUSATION_RESULT (private)"
+        MR-->>Subs: "GameStateUpdate (updated)"
         Note over MR,GE: continue game; advance turn to next active player
     end
-```

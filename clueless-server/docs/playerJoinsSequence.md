@@ -1,7 +1,5 @@
 # Player Join Lobby Sequence (TCP -> Server)
 
-This diagram shows the end-to-end flow for a JOIN request.
-
 ```mermaid
 sequenceDiagram
     autonumber
@@ -13,7 +11,8 @@ sequenceDiagram
     participant GS as GameState
     participant Subs as Subscribers (optional)
 
-    Note over C,CH: TCP connection established.\nEach message is a single JSON line.
+    Note over C,CH: TCP connection established.
+    Note over C,CH: Each message is a single JSON line.
 
     C->>CH: ClientMessage { type: JOIN, correlationId, playerId, gameId?, payload? }
     CH->>MR: route(clientId, msg, out)

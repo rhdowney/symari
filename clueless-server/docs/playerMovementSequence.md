@@ -1,94 +1,58 @@
-# Player Move Logic (Server)
+# Player Move Sequence (TCP -> Server)
 
-This document explains the server-side logic that runs when a player attempts to move, based on `MoveHandler.handleMove(String playerName, String targetRoomName)`.
+This diagram complements docs/move-logic.md and shows the end-to-end flow for a MOVE request.
 
-## Inputs
-- playerName: unique name/id of the player requesting the move.
-- targetRoomName: name/id of the room the player wants to move to.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant CH as ClientHandler
+    participant MR as MessageRouter
+    participant MV as MessageValidator
+    participant GE as GameEngine
+    participant MH as MoveHandler
+    participant RV as RuleValidator
+    participant GS as GameState
+    participant P as Player
+    participant R as Room
 
-## Primary Components
-- GameState
-  - Provides access to players and rooms (`getPlayer`, `getRoom`).
-  - Tracks current room occupancy.
-- Player
-  - Holds the player’s current location (`getCurrentRoom`, `setCurrentRoom`).
-- Room
-  - Tracks who is in the room (`addOccupant`, `removeOccupant`).
-- RuleValidator
-  - Enforces movement rules (`canMove(player, targetRoom)`).
-- MoveHandler
-  - Orchestrates the move flow and mutates state if valid.
+    Note over C,CH: Connection already established (TCP).\nMessages are line-delimited JSON.
 
-## Step-by-Step Flow
+    C->>CH: JSON line: ClientMessage{ type: MOVE, correlationId, gameId, playerId, payload{ targetRoom } }
+    CH->>MR: route(clientId, msg, out)
+    MR->>MV: validate(msg)
+    alt invalid message
+        MV-->>MR: throws IllegalArgumentException
+        MR-->>CH: ServerMessage.error("INVALID", reason)
+        CH-->>C: JSON line (error)
+    else valid
+        MV-->>MR: ok
+    end
 
-1) Lookup entities
-- Fetch Player by playerName via GameState.getPlayer.
-- Fetch Room by targetRoomName via GameState.getRoom.
-- If either is null, return false (invalid request).
+    MR->>GE: handleMove(gameId, playerId, payload)
+    GE->>MH: handleMove(playerId, targetRoomName)
 
-2) First placement (no rule checks)
-- If player.getCurrentRoom() == null:
-  - player.setCurrentRoom(targetRoom)
-  - targetRoom.addOccupant(player)
-  - Log: [MOVE] <player> placed in <room>
-  - Return true
-- Rationale: First placement is a setup step; rules don’t apply yet.
+    MH->>GS: getPlayer(playerId)
+    MH->>GS: getRoom(targetRoomName)
+    alt first placement
+        MH->>P: setCurrentRoom(targetRoom)
+        MH->>R: addOccupant(player)
+        MH-->>GE: { accepted: true, firstPlacement: true }
+    else subsequent move
+        MH->>RV: canMove(player, targetRoom)?
+        alt allowed
+            MH->>R: removeOccupant(player) [from currentRoom]
+            MH->>P: setCurrentRoom(targetRoom)
+            MH->>R: addOccupant(player)
+            MH-->>GE: { accepted: true }
+        else disallowed
+            MH-->>GE: { accepted: false, reason }
+        end
+    end
 
-3) Validate movement rules
-- For subsequent moves, verify RuleValidator.canMove(player, targetRoom).
-- If canMove is false, return false (move rejected).
+    GE-->>MR: result Map
+    MR-->>CH: ServerMessage.ok("MOVE_ACK").withCorrelationId(...).withPayload(result)
+    CH-->>C: JSON line (ok)
 
-4) Apply state changes (on valid move)
-- Let currentRoom = player.getCurrentRoom()
-- If currentRoom != null: currentRoom.removeOccupant(player)
-- player.setCurrentRoom(targetRoom)
-- targetRoom.addOccupant(player)
-- Log: [MOVE] <player> moved to <room>
-- Return true
-
-## Side Effects
-- Mutates Player.currentRoom.
-- Updates Room occupancy lists (remove from old, add to new).
-- Prints a log line for observability.
-
-## Failure Modes (returns false)
-- Unknown player or room (null lookups).
-- Movement disallowed by RuleValidator.canMove.
-- Note: There is no explicit same-room short-circuit; RuleValidator should handle “no-op” or disallow as needed.
-
-## Assumptions and Responsibilities
-- GameState contains consistent Player and Room instances.
-- RuleValidator.canMove encapsulates all board rules (adjacency, passages, turn order, etc.).
-- Room.addOccupant/removeOccupant keep occupancy sets consistent and idempotent.
-
-## Pseudocode (mirrors MoveHandler)
-
+    Note over C,CH: Client pairs response via correlationId.
 ```
-handleMove(playerName, targetRoomName):
-  player = gameState.getPlayer(playerName)
-  target = gameState.getRoom(targetRoomName)
-  if player == null or target == null:
-    return false
-
-  if player.currentRoom == null:
-    player.currentRoom = target
-    target.addOccupant(player)
-    log "[MOVE] placed"
-    return true
-
-  if not RuleValidator.canMove(player, target):
-    return false
-
-  current = player.currentRoom
-  if current != null:
-    current.removeOccupant(player)
-
-  player.currentRoom = target
-  target.addOccupant(player)
-  log "[MOVE] moved"
-  return true
-```
-
-## Integration Notes
-- Typical call path (TCP): Client sends MOVE JSON -> ClientHandler -> MessageRouter -> GameEngine/MoveHandler -> boolean result -> ServerMessage MOVE_ACK with result.
-- For UI updates, broadcast a GameStateUpdate after a successful move (not shown in MoveHandler; done by routing/broadcast layer).
