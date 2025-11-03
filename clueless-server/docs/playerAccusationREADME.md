@@ -40,9 +40,9 @@ Step-by-step flow
   - Optionally reveal full solution details in GameState or ServerMessage payload
   - Prepare result: { correct: true, winner: playerId, solution: {...} }
 - If accusation does not match:
-  - Mark player as eliminated (policy: cannot make further moves/accusations; may still be required to show cards to others)
+  - Mark player as eliminated (policy: cannot make further moves/suggestions/accusations; may still be required to show cards to others)
   - Remove player from turn order (or flag them inactive)
-  - Check end conditions (only one active player remains → that player wins)
+  - Check end conditions (no active players remain -> game ends without a winner)
   - Prepare result: { correct: false, eliminated: playerId, remainingPlayers: [...] }
 
 5) Respond & broadcast
