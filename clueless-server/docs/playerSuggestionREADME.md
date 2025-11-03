@@ -28,8 +28,8 @@ High-level goals
 4. Stop at first player who can disprove (they privately show one card to the suggester).
 5. Notify relevant parties:
    - private response: the suggester receives which card was shown (or an opaque ACK if hide card content is desired).
-   - (optional) notify the player who showed a card that they successfully disproved.
-   - (optional) broadcast that a suggestion occurred (without revealing the card) to all players.
+   - notify the player who showed a card that they successfully disproved.
+   - broadcast that the suggestion was disproved (without revealing the card) to all players.
 6. If no player can disprove, return a NO_REVEAL result (used by engine to continue the game).
 
 Step-by-step flow
@@ -49,10 +49,8 @@ Step-by-step flow
    - For each candidate player in order:
      a) Query candidate's hand to see if they have any of the suggested cards.
      b) If candidate has no matching cards: continue to next player.
-     c) If candidate has one or more matching cards:
-         - If game policy is "choose any card to show", and the server can decide, pick one (or ask candidate via client prompt if interactive).
-         - The chosen card is privately revealed to the suggester.
-         - Stop iterating; return a positive result containing:
+     c) The chosen card is privately revealed to the suggester.
+     d) Stop iterating; return a positive result containing:
              { disprover: candidateId, revealedCard: <card-id-or-name> } (or {disprover: candidateId} if card content must remain hidden)
    - If none can disprove: return { disprover: null } or a NO_REVEAL result.
 5) MessageRouter receives result and sends replies:
@@ -68,7 +66,6 @@ Step-by-step flow
 
 Privacy notes
 - Revealed card should only be visible to the suggester and optionally to the disprover (not to others).
-- If the front end cannot display private messages, consider returning an opaque token and require the client to request the revealed card via a secure channel.
 
 Error handling
 - If validator fails: send ServerMessage.error("INVALID", reason).
