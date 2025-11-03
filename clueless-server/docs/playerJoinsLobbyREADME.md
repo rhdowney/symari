@@ -15,7 +15,6 @@ This document explains the server-side logic when a player joins a game lobby vi
   - Ensures required fields exist (type, correlationId, playerId).
 - MessageRouter
   - Switches on MessageType.JOIN, calls engine, and writes ServerMessage back.
-  - Optionally registers the client for future broadcasts for that game.
 - GameEngine (and/or GameManager)
   - Creates/maintains game sessions and player membership.
   - Returns a summary (gameId, playerId, players) for the response payload.
