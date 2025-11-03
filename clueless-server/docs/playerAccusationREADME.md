@@ -3,7 +3,7 @@
 Summary
 - A formal, public claim that a player believes they know the solution (suspect, weapon, room).
 - If correct → game ends, reveal solution, declare winner.
-- If incorrect → accusing player is eliminated (policy configurable), game continues without them.
+- If incorrect → accusing player continues playing, but their role is limited to disproving other players' suggestions.  They no longer get to move or make suggestions.
 
 Inputs (Client -> Server)
 - ClientMessage:
