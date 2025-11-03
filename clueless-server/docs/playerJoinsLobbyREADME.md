@@ -40,22 +40,20 @@ This document explains the server-side logic when a player joins a game lobby vi
   - Determine effective gameId (use provided or default/create).
   - Ensure a GameEngine instance exists for that game (create if first join).
   - Call engine.joinGame(gameId, playerId, payload) to register the player.
-  - Optionally: record clientId -> gameId and keep the client’s PrintWriter for broadcasts to this game.
+  - Record clientId -> gameId and keep the client’s PrintWriter for broadcasts to this game.
 
 4) Respond
 - Build ServerMessage.ok("JOIN_ACK")
   - withCorrelationId(correlationId)
   - withPayload("gameId", gameId)
   - withPayload("playerId", playerId)
-  - optionally withPayload("players", [...]) or a compact state summary.
 - Serialize with JsonUtil.toJson and write the line to the client socket.
 
-5) Optional broadcast
-- If desired, broadcast a GameStateUpdate to all subscribers of the game to reflect the new player list.
+5) Broadcast
+- Broadcast a GameStateUpdate to all subscribers of the game to reflect the new player list.
 
 ## Side Effects
 - Mutates game session membership (adds the player to the game).
-- Optionally registers the client for future game broadcasts.
 
 ## Failure Modes (send ServerMessage.error)
 - INVALID: missing type/correlationId/playerId or malformed JSON.
