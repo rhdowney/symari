@@ -1,4 +1,3 @@
-import React from 'react';
 import type { GameSnapshot, RoomView } from '../api/types';
 
 type Props = {
@@ -25,7 +24,7 @@ function initials(name: string) {
   return (m ? m.join('') : name.substring(0, 2)).toUpperCase().slice(0, 2);
 }
 
-export const Board: React.FC<Props> = ({ snapshot, onRoomClick }) => {
+export function Board({ snapshot, onRoomClick }: Props) {
   const roomsByName: Record<string, RoomView> = Object.create(null);
   (snapshot?.rooms ?? []).forEach(r => { roomsByName[r.name.toUpperCase()] = r; });
 
@@ -53,6 +52,4 @@ export const Board: React.FC<Props> = ({ snapshot, onRoomClick }) => {
       })}
     </div>
   );
-};
-
-export default Board;
+}

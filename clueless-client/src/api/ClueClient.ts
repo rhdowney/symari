@@ -2,7 +2,12 @@ import type { ClientMsg, ServerMsg } from './types';
 
 export class ClueClient {
   private ws?: WebSocket;
-  constructor(private url = (import.meta.env.VITE_WS_URL as string) || 'ws://localhost:8081') {}
+  private url: string;
+  
+  constructor(url?: string) {
+    this.url = url || (import.meta.env.VITE_WS_URL as string) || 'ws://localhost:8081';
+  }
+  
   connect(): Promise<void> {
     return new Promise((res, rej) => {
       this.ws = new WebSocket(this.url);
