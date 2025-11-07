@@ -13,47 +13,97 @@ public class MessageValidator {
         requireNonBlank(msg.getCorrelationId(), "correlationId"); // required for pairing
 
         switch (msg.getType()) {
+            case PING:
+                // correlationId is enough
+                break;
+
             case JOIN:
                 // Minimal: need a playerId; gameId optional
                 requireNonBlank(msg.getPlayerId(), "playerId");
                 break;
 
             case MOVE:
-                // Require game/player and a target hint in payload
+                // Require game/player and a target room
                 requireNonBlank(msg.getGameId(), "gameId");
                 requireNonBlank(msg.getPlayerId(), "playerId");
                 Map<String, Object> move = requirePayload(msg);
-                if (!hasAny(move, "to", "direction", "room")) {
-                    throw new IllegalArgumentException("Missing move target: one of payload.to|direction|room");
+                if (!hasAny(move, "to", "room")) {
+                    throw new IllegalArgumentException("Missing move target: one of payload.to|room");
                 }
                 break;
 
-            case SUGGESTION:
+            case MOVE_TO_HALLWAY:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                Map<String, Object> mth = requirePayload(msg);
+                if (!hasAny(mth, "hallway", "id", "hallwayId")) {
+                    throw new IllegalArgumentException("Missing hallway id: one of payload.hallway|id|hallwayId");
+                }
+                break;
+
+            case MOVE_FROM_HALLWAY:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                Map<String, Object> mfh = requirePayload(msg);
+                if (!hasAny(mfh, "to", "room")) {
+                    throw new IllegalArgumentException("Missing target room: one of payload.to|room");
+                }
+                break;
+
+            case SUGGEST:
                 // Require suspect, weapon, room
                 requireNonBlank(msg.getGameId(), "gameId");
                 requireNonBlank(msg.getPlayerId(), "playerId");
                 requirePayloadKeys(requirePayload(msg), "suspect", "weapon", "room");
                 break;
 
-            case ACCUSATION:
+            case ACCUSE:
                 // Require suspect, weapon, room
                 requireNonBlank(msg.getGameId(), "gameId");
                 requireNonBlank(msg.getPlayerId(), "playerId");
                 requirePayloadKeys(requirePayload(msg), "suspect", "weapon", "room");
                 break;
 
-            case CHAT:
-                // Require player and non-blank text
+            case END_TURN:
+                requireNonBlank(msg.getGameId(), "gameId");
                 requireNonBlank(msg.getPlayerId(), "playerId");
-                Map<String, Object> chat = requirePayload(msg);
-                Object text = chat.get("text");
-                if (text == null || text.toString().trim().isEmpty()) {
-                    throw new IllegalArgumentException("Missing payload.text");
+                break;
+
+            case NEW_GAME:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                // payload.keepPlayers is optional; no strict validation needed
+                break;
+
+            case JOIN_LOBBY:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                break;
+
+            case SELECT_CHARACTER:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                Map<String,Object> sc = requirePayload(msg);
+                requirePayloadKeys(sc, "character");
+                break;
+
+            case UNSELECT_CHARACTER:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                break;
+
+            case SET_READY:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
+                Map<String,Object> rdy = requirePayload(msg);
+                if (!hasAny(rdy, "ready")) {
+                    throw new IllegalArgumentException("Missing payload.ready");
                 }
                 break;
 
-            case HEARTBEAT:
-                // correlationId already enforced
+            case START_GAME:
+                requireNonBlank(msg.getGameId(), "gameId");
+                requireNonBlank(msg.getPlayerId(), "playerId");
                 break;
 
             default:
