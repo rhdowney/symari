@@ -53,14 +53,21 @@ export function WebSocketProvider({ children, url }: WebSocketProviderProps) {
   const send = useCallback((msg: ClientMsg) => {
     if (!clientRef.current) {
       console.error('[WebSocket] Cannot send: client not initialized');
+      setError('WebSocket not initialized');
       return;
     }
     try {
       console.log('[WebSocket] Sending:', msg);
       clientRef.current.send(msg);
+      // Clear any previous errors on successful send
+      setError(undefined);
     } catch (err) {
-      console.error('[WebSocket] Send failed:', err);
-      setError(err instanceof Error ? err.message : 'Send failed');
+      const errMsg = err instanceof Error ? err.message : 'Send failed';
+      console.error('[WebSocket] Send failed:', errMsg);
+      // Don't set error for queued messages
+      if (!errMsg.includes('queueing')) {
+        setError(errMsg);
+      }
     }
   }, []);
 

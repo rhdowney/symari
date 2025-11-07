@@ -18,6 +18,7 @@ public class MessageRouter {
     private final Map<String, Set<String>> joined = new ConcurrentHashMap<>();
     private final Map<String, Set<PrintWriter>> subscribers = new ConcurrentHashMap<>(); // gameId -> client writers
     private final Map<String, Lobby> lobbies = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, PrintWriter>> playerSockets = new ConcurrentHashMap<>(); // gameId -> (playerId -> socket)
 
     public MessageRouter() { }
 
@@ -38,6 +39,16 @@ public class MessageRouter {
     private void subscribe(String gameId, PrintWriter out) {
         subscribers.computeIfAbsent(gameId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(out);
     }
+    
+    private void registerPlayerSocket(String gameId, String playerId, PrintWriter out) {
+        playerSockets.computeIfAbsent(gameId, k -> new ConcurrentHashMap<>()).put(playerId, out);
+    }
+    
+    private PrintWriter findSocketForPlayer(String gameId, String playerId) {
+        Map<String, PrintWriter> gameSockets = playerSockets.get(gameId);
+        return gameSockets != null ? gameSockets.get(playerId) : null;
+    }
+    
     private void broadcast(String gameId, String json, PrintWriter exclude) {
         var set = subscribers.getOrDefault(gameId, Collections.emptySet());
         for (PrintWriter w : set) {
@@ -57,6 +68,7 @@ public class MessageRouter {
                     Lobby lobby = getOrCreateLobby(gameId);
                     lobby.join(playerId);
                     subscribe(gameId, out);
+                    registerPlayerSocket(gameId, playerId, out);
 
                     String lobbyJson = JsonUtil.toJson(buildLobbySnapshot(lobby));
                     send(out, "{\"type\":\"ACK\",\"for\":\"JOIN_LOBBY\",\"gameId\":\"" + esc(gameId) + "\",\"playerId\":\"" + esc(playerId) + "\",\"lobby\":" + lobbyJson + "}");
@@ -119,9 +131,18 @@ public class MessageRouter {
                     engine.startGame();
                     lobby.setStarted(true);
 
-                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
-                    send(out, "{\"type\":\"ACK\",\"for\":\"START_GAME\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + stateJson + "}");
-                    broadcast(gameId, "{\"type\":\"EVENT\",\"event\":\"START_GAME\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + stateJson + "}", out);
+                    // Send personalized snapshot with hand to the requesting player
+                    String personalStateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard(), playerId));
+                    send(out, "{\"type\":\"ACK\",\"for\":\"START_GAME\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + personalStateJson + "}");
+                    
+                    // Broadcast to all other players with their own hands
+                    for (String playerName : lobby.getPlayers()) {
+                        PrintWriter playerSocket = findSocketForPlayer(gameId, playerName);
+                        if (playerSocket != null && !playerSocket.equals(out)) {
+                            String playerStateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard(), playerName));
+                            send(playerSocket, "{\"type\":\"EVENT\",\"event\":\"START_GAME\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + playerStateJson + "}");
+                        }
+                    }
                     break;
                 }
                 case PING: {
@@ -385,6 +406,10 @@ public class MessageRouter {
     }
 
     private static Map<String, Object> buildSnapshot(GameState gs, Board board) {
+        return buildSnapshot(gs, board, null);
+    }
+
+    private static Map<String, Object> buildSnapshot(GameState gs, Board board, String viewingPlayerId) {
         Map<String, Object> root = new LinkedHashMap<>();
         List<Map<String, Object>> players = new ArrayList<>();
         for (Player p : gs.getPlayers().values()) {
@@ -406,6 +431,19 @@ public class MessageRouter {
                 pm.put("location", null);
             }
             pm.put("active", p.isActive());
+            
+            // Include hand only for the viewing player
+            if (viewingPlayerId != null && p.getName().equals(viewingPlayerId) && p.getHand() != null) {
+                List<Map<String, Object>> hand = new ArrayList<>();
+                for (Card c : p.getHand()) {
+                    Map<String, Object> card = new LinkedHashMap<>();
+                    card.put("name", c.getName());
+                    card.put("type", c.getType().toString());
+                    hand.add(card);
+                }
+                pm.put("hand", hand);
+            }
+            
             players.add(pm);
         }
         root.put("players", players);
