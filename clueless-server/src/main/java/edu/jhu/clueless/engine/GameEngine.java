@@ -8,38 +8,30 @@ public class GameEngine {
     private final GameState gameState;
     private final MoveHandler moveHandler;
     private final SuggestionHandler suggestionHandler;
+    private final Board board;
 
     public GameEngine(GameState gameState) {
         this.gameState = gameState != null ? gameState : new GameState();
-        this.moveHandler = new MoveHandler(this.gameState);
+        this.board = Board.standard();
+        this.moveHandler = new MoveHandler(this.gameState, this.board);
         this.suggestionHandler = new SuggestionHandler(this.gameState); // adjust if needed
         ensureBoardInitialized();
     }
 
     private void ensureBoardInitialized() {
-        if (!gameState.getRooms().isEmpty()) {
-            if (gameState.getSolution() == null) {
-                gameState.setSolution(new Solution("GREEN", "ROPE", "HALL"));
-            }
-            return;
+        if (gameState.getRooms().isEmpty()) {
+            // Populate rooms and connections from the canonical board definition
+            board.applyTo(gameState);
         }
-        List<String> names = Arrays.asList("HALL","LOUNGE","STUDY","LIBRARY","BILLIARD","CONSERVATORY","BALLROOM","KITCHEN","DINING");
-        for (String n : names) if (gameState.getRoom(n) == null) gameState.addRoom(new Room(n));
-        connect("HALL","LOUNGE");         connect("HALL","STUDY");
-        connect("LOUNGE","DINING");       connect("LOUNGE","CONSERVATORY");
-        connect("STUDY","LIBRARY");       connect("STUDY","KITCHEN");
-        connect("LIBRARY","BILLIARD");
-        connect("BILLIARD","CONSERVATORY"); connect("BILLIARD","DINING");
-        connect("CONSERVATORY","BALLROOM");
-        connect("BALLROOM","KITCHEN");
-        connect("KITCHEN","DINING");
-
-        gameState.setSolution(new Solution("GREEN", "ROPE", "HALL")); // hidden
+        // Solution will be initialized by startGame() when dealing
     }
 
-    private void connect(String a, String b) {
-        Room ra = gameState.getRoom(a), rb = gameState.getRoom(b);
-        if (ra != null && rb != null) ra.connect(rb);
+    public void startGame() {
+        GameManager.setupAndDeal(this.gameState, this.board);
+        // Ensure a current player is set
+        if (gameState.getCurrentPlayer() == null) {
+            for (Player p : gameState.getPlayers().values()) { if (p.isActive()) { gameState.setCurrentPlayer(p); break; } }
+        }
     }
 
     public Player joinPlayer(String playerName, String characterName) {
@@ -70,11 +62,11 @@ public class GameEngine {
         Player p = gameState.getPlayer(playerName);
         if (p == null) return false;
         if (!RuleValidator.canSuggest(p)) return false;
+        // Ensure the suggestion is made from the specified room
         if (p.getCurrentRoom() == null || room == null || !p.getCurrentRoom().getName().equalsIgnoreCase(room)) return false;
-        // TODO: invoke SuggestionHandler
+        SuggestionResult res = this.suggestionHandler.handleSuggestion(playerName, suspect, weapon, room);
+        if (!res.isAccepted()) return false;
         p.setSuggestedThisTurn(true);
-        // advance turn automatically if you prefer:
-        // gameState.nextTurn();
         return true;
     }
 
@@ -121,4 +113,34 @@ public class GameEngine {
     }
 
     public GameState getGameState() { return gameState; }
+    public Board getBoard() { return board; }
+
+    // New optional hallway-aware movement APIs
+    public boolean handleMoveToHallway(String playerName, String hallwayId) {
+        boolean ok = moveHandler.handleMoveToHallway(playerName, hallwayId);
+        // Do not set movedThisTurn here; allow exiting hallway to complete the move this turn
+        return ok;
+    }
+
+    public boolean handleMoveFromHallwayToRoom(String playerName, String targetRoomName) {
+        boolean ok = moveHandler.handleMoveFromHallwayToRoom(playerName, targetRoomName);
+        if (ok) {
+            Player p = gameState.getPlayer(playerName);
+            if (p != null) p.setMovedThisTurn(true);
+        }
+        return ok;
+    }
+
+    // Detailed suggestion path for router, returns structured result
+    public SuggestionResult handleSuggestionDetailed(String playerName, String suspect, String weapon, String room) {
+        Player p = gameState.getPlayer(playerName);
+        if (p == null) return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
+        if (!RuleValidator.canSuggest(p)) return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
+        if (p.getCurrentRoom() == null || room == null || !p.getCurrentRoom().getName().equalsIgnoreCase(room))
+            return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
+
+        SuggestionResult res = this.suggestionHandler.handleSuggestion(playerName, suspect, weapon, room);
+        if (res.isAccepted()) p.setSuggestedThisTurn(true);
+        return res;
+    }
 }

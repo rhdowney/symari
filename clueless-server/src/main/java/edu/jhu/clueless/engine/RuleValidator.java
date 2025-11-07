@@ -2,13 +2,14 @@ package edu.jhu.clueless.engine;
 
 public class RuleValidator {
 
-    // True if targetRoom is adjacent to player's current room.
+    // True if targetRoom is adjacent to player's current room per Board topology.
     // For first placement (no current room), allow move.
-    public static boolean canMove(Player player, Room targetRoom) {
+    public static boolean canMove(Player player, Room targetRoom, Board board) {
         if (player == null || targetRoom == null) return false;
         Room current = player.getCurrentRoom();
         if (current == null) return true; // initial placement handled by engine/router
-        return current.getConnectedRooms().contains(targetRoom);
+        if (board == null) return false;
+        return board.areAdjacent(current, targetRoom);
     }
 
     // Player must be in a room to suggest

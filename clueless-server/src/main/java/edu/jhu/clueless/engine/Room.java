@@ -3,28 +3,21 @@ package edu.jhu.clueless.engine;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Room {
+public class Room implements BoardLocation {
     private String name;
     private final List<Player> occupants = new ArrayList<>();
-    private final List<Room> connectedRooms = new ArrayList<>();
 
     public Room(String name) {
         this.name = name;
     }
 
-    public void connect(Room other) {
-        if (other == null || other == this) return;
-        if (!connectedRooms.contains(other)) connectedRooms.add(other);
-        if (!other.connectedRooms.contains(this)) other.connectedRooms.add(this);
-    }
+    // Adjacency is now modeled in Board; Room no longer maintains direct connections.
 
     public String getName() {
         return name;
     }
 
-    public List<Room> getConnectedRooms() {
-        return connectedRooms;
-    }
+    // Deprecated: direct room connections have been removed.
 
     public List<Player> getOccupants() {
         return occupants;
