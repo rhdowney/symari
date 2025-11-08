@@ -3,20 +3,21 @@ import { useState } from 'react';
 interface SuggestionModalProps {
   isOpen: boolean;
   currentRoom: string;
+  activeSuspects: string[]; // Only the characters actually in the game
   onSubmit: (suspect: string, weapon: string, room: string) => void;
   onClose: () => void;
 }
 
-const SUSPECTS = ['GREEN', 'MUSTARD', 'PEACOCK', 'PLUM', 'SCARLET', 'WHITE'];
 const WEAPONS = ['CANDLESTICK', 'DAGGER', 'LEAD_PIPE', 'REVOLVER', 'ROPE', 'WRENCH'];
 
 export default function SuggestionModal({
   isOpen,
   currentRoom,
+  activeSuspects,
   onSubmit,
   onClose
 }: SuggestionModalProps) {
-  const [suspect, setSuspect] = useState(SUSPECTS[0]);
+  const [suspect, setSuspect] = useState(activeSuspects[0] || '');
   const [weapon, setWeapon] = useState(WEAPONS[0]);
 
   if (!isOpen) return null;
@@ -48,7 +49,7 @@ export default function SuggestionModal({
               onChange={(e) => setSuspect(e.target.value)}
               className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-purple-500 focus:outline-none"
             >
-              {SUSPECTS.map(s => (
+              {activeSuspects.map(s => (
                 <option key={s} value={s}>
                   {s.charAt(0) + s.slice(1).toLowerCase()}
                 </option>

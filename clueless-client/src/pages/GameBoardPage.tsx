@@ -98,6 +98,12 @@ export default function GameBoardPage() {
     return getValidMoves(currentLocation, tokens);
   }, [currentLocation, gameState, hasMovedThisTurn]);
 
+  // Get active suspects (characters) in the game
+  const activeSuspects = useMemo(() => {
+    if (!gameState) return [];
+    return gameState.players.map(p => p.character).filter(Boolean);
+  }, [gameState]);
+
   // Game logic values
   const gameLogicValues = useMemo(() => {
     if (!gameState || !playerId) {
@@ -112,14 +118,6 @@ export default function GameBoardPage() {
     const myPlayer = gameState.players.find(p => p.name === playerId);
     const myCards = myPlayer?.hand || [];
     const canSuggest = currentLocation ? canMakeSuggestion(currentLocation) : false;
-    
-    // Debug: Check if cards are being received
-    console.log('[GameBoardPage] Player data:', { 
-      playerId, 
-      myPlayer: myPlayer ? { name: myPlayer.name, hand: myPlayer.hand } : null,
-      myCards,
-      cardCount: myCards.length 
-    });
     
     return {
       isMyTurn,
@@ -314,60 +312,63 @@ export default function GameBoardPage() {
 
   // Main game board UI
   return (
-    <div className="bg-gray-900 h-screen text-white p-2 flex flex-col overflow-hidden">
-      <div className="w-full mx-auto flex flex-col h-full">
-        <ToastNotification gameState={gameState} currentPlayerId={playerId} />
-        
-        {/* Connection status header */}
-        <div className="flex items-center justify-between mb-2 px-2">
-          <div>
-            <h1 className="text-lg font-semibold">Clue-Less</h1>
-            <p className="text-xs text-gray-500">Playing as: {playerId}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {error && (
-              <div className="px-3 py-1 rounded-full bg-red-900 text-red-200 text-xs font-medium">
-                ❌ Error: {error}
-              </div>
-            )}
-            {connected && (
-              <div className="px-3 py-1 rounded-full bg-green-900 text-green-200 text-xs font-medium">
-                ✓ Connected
-              </div>
-            )}
-          </div>
+    <div className="bg-gray-900 min-h-screen text-white p-4">
+      <ToastNotification gameState={gameState} currentPlayerId={playerId} />
+      
+      {/* Connection status header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Clue-Less</h1>
+          <p className="text-sm text-gray-400">Playing as: {playerId}</p>
         </div>
-        
-        {/* Board - 60% height */}
-        <div className="flex items-center justify-center" style={{ height: '60%' }}>
-          <Board 
-            snapshot={gameState}
-            onRoomClick={handleLocationClick}
-            validMoves={validMoves}
-            isMyTurn={gameLogicValues.isMyTurn}
-          />
+        <div className="flex items-center gap-2">
+          {error && (
+            <div className="px-3 py-1 rounded-full bg-red-900 text-red-200 text-sm font-medium">
+              ❌ Error: {error}
+            </div>
+          )}
+          {connected && (
+            <div className="px-3 py-1 rounded-full bg-green-900 text-green-200 text-sm font-medium">
+              ✓ Connected
+            </div>
+          )}
         </div>
-        
-        {/* Action Bar */}
-        <div className="flex-shrink-0 my-2">
-          <ActionBar 
-            isMyTurn={gameLogicValues.isMyTurn}
-            onSuggest={handleSuggest}
-            onAccuse={handleAccuse}
-            onEndTurn={handleEndTurn}
-            canSuggest={gameLogicValues.canSuggest}
-            canAccuse={canMakeAccusation()}
-          />
-        </div>
-        
-        {/* Bottom panels - 30% height */}
-        <div className="flex gap-4 flex-shrink-0" style={{ height: '30%' }}>
-          <HandPanel cards={gameLogicValues.myCards} />
-          <EventFeed events={eventFeed} />
-        </div>
-        
-        {/* Move selection modal */}
-        <MoveSelectionModal
+      </div>
+      
+      {/* Game Board */}
+      <div className="flex justify-center mb-6">
+        <Board 
+          snapshot={gameState}
+          onRoomClick={handleLocationClick}
+          validMoves={validMoves}
+          isMyTurn={gameLogicValues.isMyTurn}
+        />
+      </div>
+      
+      {/* Action Bar */}
+      <div className="mb-6">
+        <ActionBar 
+          isMyTurn={gameLogicValues.isMyTurn}
+          onSuggest={handleSuggest}
+          onAccuse={handleAccuse}
+          onEndTurn={handleEndTurn}
+          canSuggest={gameLogicValues.canSuggest}
+          canAccuse={canMakeAccusation()}
+        />
+      </div>
+      
+      {/* Hand Panel */}
+      <div className="mb-6">
+        <HandPanel cards={gameLogicValues.myCards} />
+      </div>
+      
+      {/* Event Feed */}
+      <div className="mb-6">
+        <EventFeed events={eventFeed} />
+      </div>
+      
+      {/* Move selection modal */}
+      <MoveSelectionModal
           isOpen={showMoveModal}
           validMoves={validMoves}
           onSelectMove={handleSelectMove}
@@ -378,6 +379,7 @@ export default function GameBoardPage() {
         <SuggestionModal
           isOpen={showSuggestionModal}
           currentRoom={currentLocation || ''}
+          activeSuspects={activeSuspects}
           onSubmit={handleSubmitSuggestion}
           onClose={() => setShowSuggestionModal(false)}
         />
@@ -385,29 +387,29 @@ export default function GameBoardPage() {
         {/* Accusation modal */}
         <AccusationModal
           isOpen={showAccusationModal}
+          activeSuspects={activeSuspects}
           onSubmit={handleSubmitAccusation}
           onClose={() => setShowAccusationModal(false)}
         />
         
-        {/* Suggestion result modal */}
-        <SuggestionResultModal
-          isOpen={showSuggestionResult}
-          disprover={suggestionResult?.disprover || null}
-          revealedCard={suggestionResult?.revealedCard || null}
-          onClose={() => setShowSuggestionResult(false)}
-        />
-        
-        {/* Disprove modal */}
-        <DisproveModal
-          isOpen={!!disprovePrompt}
-          suggester={disprovePrompt?.suggester || ''}
-          suspect={disprovePrompt?.suspect || ''}
-          weapon={disprovePrompt?.weapon || ''}
-          room={disprovePrompt?.room || ''}
-          matchingCards={matchingCardsForDisprove}
-          onClose={clearDisprovePrompt}
-        />
-      </div>
+      {/* Suggestion result modal */}
+      <SuggestionResultModal
+        isOpen={showSuggestionResult}
+        disprover={suggestionResult?.disprover || null}
+        revealedCard={suggestionResult?.revealedCard || null}
+        onClose={() => setShowSuggestionResult(false)}
+      />
+      
+      {/* Disprove modal */}
+      <DisproveModal
+        isOpen={!!disprovePrompt}
+        suggester={disprovePrompt?.suggester || ''}
+        suspect={disprovePrompt?.suspect || ''}
+        weapon={disprovePrompt?.weapon || ''}
+        room={disprovePrompt?.room || ''}
+        matchingCards={matchingCardsForDisprove}
+        onClose={clearDisprovePrompt}
+      />
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function Lobby({
   const allCharacters = ["GREEN", "MUSTARD", "PEACOCK", "PLUM", "SCARLET", "WHITE"];
   const playersList = Object.keys(lobbyState.selections);
   const allPlayersReady = playersList.length > 0 && playersList.every(p => lobbyState.ready[p]);
-  const canStartGame = allPlayersReady && playersList.length >= 3;
+  const canStartGame = allPlayersReady && playersList.length >= 2;
 
   const handleLeaveLobby = () => {
     if (window.confirm('Are you sure you want to leave the lobby?')) {
