@@ -39,8 +39,7 @@ export default function GameBoardPage() {
     startGame,
   } = usePlayer();
 
-  // Local state for move selection
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  // Local state for modals and game actions
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [showAccusationModal, setShowAccusationModal] = useState(false);
@@ -49,6 +48,7 @@ export default function GameBoardPage() {
     disprover: string | null;
     revealedCard: string | null;
   } | null>(null);
+  const [hasMovedThisTurn, setHasMovedThisTurn] = useState(false);
 
   // Handle SUGGEST ACK messages (private result with revealed card)
   useEffect(() => {
@@ -77,16 +77,26 @@ export default function GameBoardPage() {
     return getCurrentPlayerLocation();
   }, [getCurrentPlayerLocation]);
 
+  // Reset hasMovedThisTurn when turn changes
+  useEffect(() => {
+    if (gameState?.currentPlayer === playerId) {
+      // It's now my turn - reset the moved flag
+      setHasMovedThisTurn(false);
+    }
+  }, [gameState?.currentPlayer, playerId]);
+
   // Calculate valid moves
   const validMoves = useMemo(() => {
-    if (!currentLocation || !gameState) return [];
+    // Don't show valid moves if player has already moved this turn
+    if (!currentLocation || !gameState || hasMovedThisTurn) return [];
     // Map players to token format for getValidMoves
+    // Use location.name (which works for both rooms and hallways) or fall back to room field
     const tokens = gameState.players.map(p => ({
       playerId: p.name,
-      locationId: p.room || ''
+      locationId: p.location?.name || p.room || ''
     })).filter(t => t.locationId);
     return getValidMoves(currentLocation, tokens);
-  }, [currentLocation, gameState]);
+  }, [currentLocation, gameState, hasMovedThisTurn]);
 
   // Game logic values
   const gameLogicValues = useMemo(() => {
@@ -131,53 +141,47 @@ export default function GameBoardPage() {
       return;
     }
 
-    if (validMoves.includes(locationId)) {
-      setSelectedLocation(locationId);
-      console.log('Valid move selected:', locationId);
-    } else {
+    if (!validMoves.includes(locationId)) {
       console.log('Invalid move attempted:', locationId, 'Valid moves:', validMoves);
+      return;
     }
-  }, [currentLocation, validMoves, gameLogicValues.isMyTurn]);
 
-  const handleMove = useCallback(() => {
-    if (!playerId || !gameId || !currentLocation) return;
+    // Valid move - execute immediately
+    console.log('Valid move selected, executing:', locationId);
     
-    if (selectedLocation) {
-      // Determine the move type based on current and target locations
-      const moveType = getMoveType(currentLocation, selectedLocation);
-      
-      // Send appropriate message based on move type
-      if (moveType === 'MOVE_TO_HALLWAY') {
-        send({
-          type: 'MOVE_TO_HALLWAY',
-          gameId,
-          playerId,
-          payload: { hallway: selectedLocation, hallwayId: selectedLocation, id: selectedLocation }
-        });
-      } else if (moveType === 'MOVE_FROM_HALLWAY') {
-        send({
-          type: 'MOVE_FROM_HALLWAY',
-          gameId,
-          playerId,
-          payload: { room: selectedLocation, to: selectedLocation }
-        });
-      } else {
-        // Room to room (direct or secret passage)
-        send({
-          type: 'MOVE',
-          gameId,
-          playerId,
-          payload: { to: selectedLocation, room: selectedLocation }
-        });
-      }
-      setSelectedLocation(null);
+    if (!playerId || !gameId) return;
+    
+    // Mark that player has moved this turn
+    setHasMovedThisTurn(true);
+    
+    // Determine the move type based on current and target locations
+    const moveType = getMoveType(currentLocation, locationId);
+    
+    // Send appropriate message based on move type
+    if (moveType === 'MOVE_TO_HALLWAY') {
+      send({
+        type: 'MOVE_TO_HALLWAY',
+        gameId,
+        playerId,
+        payload: { hallway: locationId, hallwayId: locationId, id: locationId }
+      });
+    } else if (moveType === 'MOVE_FROM_HALLWAY') {
+      send({
+        type: 'MOVE_FROM_HALLWAY',
+        gameId,
+        playerId,
+        payload: { room: locationId, to: locationId }
+      });
     } else {
-      // Show modal to select a move
-      if (currentLocation && validMoves.length > 0) {
-        setShowMoveModal(true);
-      }
+      // Room to room (direct or secret passage)
+      send({
+        type: 'MOVE',
+        gameId,
+        playerId,
+        payload: { to: locationId, room: locationId }
+      });
     }
-  }, [selectedLocation, currentLocation, validMoves, send, playerId, gameId]);
+  }, [currentLocation, validMoves, gameLogicValues.isMyTurn, playerId, gameId, send]);
 
   const handleSelectMove = useCallback((locationId: string) => {
     if (!playerId || !gameId || !currentLocation) return;
@@ -331,6 +335,8 @@ export default function GameBoardPage() {
           <Board 
             snapshot={gameState}
             onRoomClick={handleLocationClick}
+            validMoves={validMoves}
+            isMyTurn={gameLogicValues.isMyTurn}
           />
         </div>
         
@@ -338,11 +344,9 @@ export default function GameBoardPage() {
         <div className="flex-shrink-0 my-2">
           <ActionBar 
             isMyTurn={gameLogicValues.isMyTurn}
-            onMove={handleMove}
             onSuggest={handleSuggest}
             onAccuse={handleAccuse}
             onEndTurn={handleEndTurn}
-            canMove={validMoves.length > 0 || !!selectedLocation}
             canSuggest={gameLogicValues.canSuggest}
             canAccuse={canMakeAccusation()}
           />

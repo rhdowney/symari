@@ -3,6 +3,8 @@ import type { GameSnapshot, PlayerView } from '../api/types';
 type Props = {
   snapshot?: GameSnapshot;
   onRoomClick?: (location: string) => void;
+  validMoves?: string[];
+  isMyTurn?: boolean;
 };
 
 // Character to emoji mapping (friendly names)
@@ -37,14 +39,15 @@ function getCharacterEmoji(character: string): string {
   return character;
 }
 
-export function Board({ snapshot, onRoomClick }: Props) {
+export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false }: Props) {
   // 5x5 grid representing the Clue-Less board
+  // Using server's canonical hallway IDs (alphabetically sorted)
   const gridLayout = [
-    ['STUDY', 'STUDY_HALL', 'HALL', 'HALL_LOUNGE', 'LOUNGE'],
-    ['STUDY_LIBRARY', 'x', 'HALL_BILLIARD', 'x', 'LOUNGE_DINING'],
-    ['LIBRARY', 'LIBRARY_BILLIARD', 'BILLIARD', 'BILLIARD_DINING', 'DINING'],
-    ['LIBRARY_CONSERVATORY', 'x', 'BILLIARD_BALLROOM', 'x', 'DINING_KITCHEN'],
-    ['CONSERVATORY', 'CONSERVATORY_BALLROOM', 'BALLROOM', 'BALLROOM_KITCHEN', 'KITCHEN']
+    ['STUDY', 'HALL_STUDY', 'HALL', 'HALL_LOUNGE', 'LOUNGE'],
+    ['LIBRARY_STUDY', 'x', 'BILLIARD_HALL', 'x', 'DINING_LOUNGE'],
+    ['LIBRARY', 'BILLIARD_LIBRARY', 'BILLIARD', 'BILLIARD_DINING', 'DINING'],
+    ['CONSERVATORY_LIBRARY', 'x', 'BALLROOM_BILLIARD', 'x', 'DINING_KITCHEN'],
+    ['CONSERVATORY', 'BALLROOM_CONSERVATORY', 'BALLROOM', 'BALLROOM_KITCHEN', 'KITCHEN']
   ];
 
   // Map server room names to grid cell IDs
@@ -206,6 +209,12 @@ export function Board({ snapshot, onRoomClick }: Props) {
     const isHorizontalHallway = (row % 2 === 0 && col % 2 === 1);
     const isVerticalHallway = (row % 2 === 1 && col % 2 === 0);
     
+    // Check if this location is a valid move for the current player
+    const canonicalCellId = getCanonicalHallwayId(cellId);
+    const isValidMove = isMyTurn && validMoves.some(move => 
+      getCanonicalHallwayId(move) === canonicalCellId || move === cellId
+    );
+    
     if (isHallway) {
       return (
         <div
@@ -214,6 +223,7 @@ export function Board({ snapshot, onRoomClick }: Props) {
             relative cursor-pointer transition-colors border-2
             bg-gray-300 border-gray-400 hover:bg-gray-200
             ${playersHere.length > 0 ? 'ring-2 ring-blue-400' : ''}
+            ${isValidMove ? 'ring-4 ring-green-500 shadow-lg shadow-green-500/50 animate-pulse' : ''}
             flex items-center justify-center
           `}
           style={{
@@ -221,8 +231,11 @@ export function Board({ snapshot, onRoomClick }: Props) {
             width: isVerticalHallway ? '2.5rem' : '7rem',
             margin: 'auto',
             // Fallback background/border without Tailwind
-            background: '#d1d5db', // gray-300
-            border: '2px solid #9ca3af', // gray-400
+            background: isValidMove ? '#86efac' : '#d1d5db', // green-300 if valid, gray-300 otherwise
+            ...(isValidMove && {
+              boxShadow: '0 0 15px 3px rgba(34, 197, 94, 0.6)',
+              border: '3px solid #22c55e'
+            })
           }}
           onClick={() => onRoomClick?.(cellId)}
         >
@@ -268,14 +281,16 @@ export function Board({ snapshot, onRoomClick }: Props) {
             relative cursor-pointer transition-colors border-2
             ${getRoomStyle(cellId)}
             ${playersHere.length > 0 ? 'ring-2 ring-blue-400' : ''}
+            ${isValidMove ? 'ring-4 ring-green-500 shadow-xl shadow-green-500/50 animate-pulse' : ''}
             hover:brightness-110
           `}
           style={{
             height: '5.5rem',
             width: '5.5rem',
-            // Fallback background/border without Tailwind gradients
-            background: '#e5e7eb', // gray-200
-            border: '2px solid #9ca3af', // gray-400
+            ...(isValidMove && {
+              boxShadow: '0 0 20px 4px rgba(34, 197, 94, 0.6)',
+              border: '3px solid #22c55e'
+            })
           }}
           onClick={() => onRoomClick?.(cellId)}
         >

@@ -1,21 +1,17 @@
 interface ActionBarProps {
   isMyTurn: boolean;
-  onMove: () => void;
   onSuggest: () => void;
   onAccuse: () => void;
   onEndTurn: () => void;
-  canMove: boolean;
   canSuggest: boolean;
   canAccuse: boolean;
 }
 
 export default function ActionBar({
   isMyTurn,
-  onMove,
   onSuggest,
   onAccuse,
   onEndTurn,
-  canMove,
   canSuggest,
   canAccuse
 }: ActionBarProps) {
@@ -36,18 +32,6 @@ export default function ActionBar({
         </div>
         
         <div className="flex gap-2">
-          <button
-            onClick={onMove}
-            disabled={!isMyTurn || !canMove}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              isMyTurn && canMove
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Move
-          </button>
-          
           <button
             onClick={onSuggest}
             disabled={!isMyTurn || !canSuggest}
