@@ -159,13 +159,20 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
       const serverRoomName = Object.entries(roomNameMap).find(([, mapped]) => mapped === cellId)?.[0];
       if (!serverRoomName) return [];
       
-      return snapshot.players.filter(p => {
+      const playersInRoom = snapshot.players.filter(p => {
         // Check room field first
         if (p.room?.toUpperCase() === serverRoomName) return true;
         // Also check location field for rooms
         if (p.location?.type === 'ROOM' && p.location.name.toUpperCase() === serverRoomName) return true;
         return false;
       });
+      
+      // Debug logging for rooms with multiple players
+      if (playersInRoom.length > 0) {
+        console.log(`Room ${cellId}: Found ${playersInRoom.length} players:`, playersInRoom.map(p => `${p.name} (${p.character})`));
+      }
+      
+      return playersInRoom;
     }
     
     // For hallways, normalize both client and server IDs for comparison
@@ -304,16 +311,20 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
           
           {/* Player tokens in room */}
           {playersHere.length > 0 && (
-            <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-1 justify-center z-20">
-              {playersHere.map((player, index) => (
-                <div
-                  key={player.name}
-                  className={`text-xl ${index > 1 ? 'scale-75' : ''}`}
-                  title={`${player.name} (${player.character})`}
-                >
-                  {getCharacterEmoji(player.character)}
-                </div>
-              ))}
+            <div className="absolute bottom-0.5 left-0.5 right-0.5 flex flex-row gap-0.5 justify-center items-center z-20 bg-black bg-opacity-20 rounded px-0.5 py-0.5">
+              {playersHere.map((player, index) => {
+                console.log(`Rendering player in ${cellId}: ${player.name} (${player.character}) - index ${index}`);
+                return (
+                  <div
+                    key={player.name}
+                    className={`text-xl ${index > 1 ? 'scale-75' : ''}`}
+                    title={`${player.name} (${player.character})`}
+                    style={{ display: 'inline-block', minWidth: '1.5rem', textAlign: 'center' }}
+                  >
+                    {getCharacterEmoji(player.character)}
+                  </div>
+                );
+              })}
             </div>
           )}
           
