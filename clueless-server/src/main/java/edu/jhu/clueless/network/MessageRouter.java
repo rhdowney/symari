@@ -407,6 +407,17 @@ public class MessageRouter {
                 pm.put("location", null);
             }
             pm.put("active", p.isActive());
+            
+            // Include player's hand (cards)
+            List<Map<String, Object>> hand = new ArrayList<>();
+            for (Card card : p.getHand()) {
+                Map<String, Object> cardMap = new LinkedHashMap<>();
+                cardMap.put("name", card.getName());
+                cardMap.put("type", card.getType().toString());
+                hand.add(cardMap);
+            }
+            pm.put("hand", hand);
+            
             players.add(pm);
         }
         root.put("players", players);

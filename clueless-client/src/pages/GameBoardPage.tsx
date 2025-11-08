@@ -113,6 +113,14 @@ export default function GameBoardPage() {
     const myCards = myPlayer?.hand || [];
     const canSuggest = currentLocation ? canMakeSuggestion(currentLocation) : false;
     
+    // Debug: Check if cards are being received
+    console.log('[GameBoardPage] Player data:', { 
+      playerId, 
+      myPlayer: myPlayer ? { name: myPlayer.name, hand: myPlayer.hand } : null,
+      myCards,
+      cardCount: myCards.length 
+    });
+    
     return {
       isMyTurn,
       myCards,
