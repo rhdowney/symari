@@ -54,7 +54,7 @@ public class MoveHandler {
             }
         } else {
             // Fallback to legacy validation
-            if (!RuleValidator.canMove(player, targetRoom, board)) return false;
+            if (!RuleValidator.canMove(player, targetRoom)) return false;
         }
 
         Room currentRoom = player.getCurrentRoom();
