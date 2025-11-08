@@ -39,7 +39,9 @@ public class BoardTopologyTest {
         board.applyTo(state);
         board.applyTo(state);
         assertEquals(9, state.getRooms().size());
-        // compatibility: rooms still have connections
-        assertTrue(state.getRoom("HALL").getConnectedRooms().stream().anyMatch(r -> r.getName().equals("LOUNGE")));
+        // Verify adjacency using Board API
+        Room hall = state.getRoom("HALL");
+        Room lounge = state.getRoom("LOUNGE");
+        assertTrue(board.areAdjacent(hall, lounge));
     }
 }

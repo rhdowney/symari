@@ -83,16 +83,19 @@ public class Board {
         Room KITCHEN = room("KITCHEN");
         Room DINING = room("DINING");
 
-        // Hallways (orthogonal adjacencies)
+        // Hallways (orthogonal adjacencies) - all 12 hallways
+        hallway(STUDY, HALL);
         hallway(HALL, LOUNGE);
-        hallway(HALL, STUDY);
+        hallway(STUDY, LIBRARY);
+        hallway(HALL, BILLIARD);
         hallway(LOUNGE, DINING);
         hallway(LIBRARY, BILLIARD);
-        hallway(BILLIARD, CONSERVATORY);
         hallway(BILLIARD, DINING);
+        hallway(LIBRARY, CONSERVATORY);
+        hallway(BILLIARD, BALLROOM);
+        hallway(DINING, KITCHEN);
         hallway(CONSERVATORY, BALLROOM);
         hallway(BALLROOM, KITCHEN);
-        hallway(KITCHEN, DINING);
 
         // Secret passages (diagonal corners)
         secret(LOUNGE, CONSERVATORY);

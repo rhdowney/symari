@@ -20,6 +20,16 @@ public class GameManager {
 		return setupAndDeal(state, board, new Random());
 	}
 
+	// Starting hallway assignments for each character
+	private static final java.util.Map<String, String> STARTING_HALLWAYS = java.util.Map.of(
+		"SCARLET", "HALL_LOUNGE",
+		"MUSTARD", "DINING_LOUNGE",
+		"WHITE", "BALLROOM_KITCHEN",
+		"GREEN", "BALLROOM_CONSERVATORY",
+		"PEACOCK", "CONSERVATORY_LIBRARY",
+		"PLUM", "LIBRARY_STUDY"
+	);
+
 	public static DealResult setupAndDeal(GameState state, Board board, Random rng) {
 		if (state == null) throw new IllegalArgumentException("state");
 		if (board == null) throw new IllegalArgumentException("board");
@@ -56,6 +66,20 @@ public class GameManager {
 			for (Card c : deck) {
 				players.get(i % players.size()).addCard(c);
 				i++;
+			}
+		}
+
+		// 5) Place players in their starting hallways
+		for (Player p : players) {
+			String characterName = p.getCharacterName();
+			String startingHallwayId = STARTING_HALLWAYS.get(characterName);
+			if (startingHallwayId != null) {
+				Board.Hallway hallway = board.getHallwayById(startingHallwayId);
+				if (hallway != null) {
+					hallway.occupy(p);
+					p.setLocation(hallway);
+					System.out.println("[SETUP] " + p.getName() + " (" + characterName + ") placed in starting hallway " + startingHallwayId);
+				}
 			}
 		}
 

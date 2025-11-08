@@ -5,18 +5,36 @@ type Props = {
   onRoomClick?: (location: string) => void;
 };
 
-// Character to emoji mapping
+// Character to emoji mapping (friendly names)
 const CHARACTER_EMOJI: Record<string, string> = {
-  'Miss Scarlet': '👩🏻',
-  'Colonel Mustard': '👨🏼',
-  'Mrs. White': '👵🏻',
-  'Mr. Green': '👨🏽',
-  'Mrs. Peacock': '👩🏻‍🦳',
-  'Professor Plum': '👨🏻‍🏫',
+  'Miss Scarlet': '🔴',
+  'Colonel Mustard': '🟡',
+  'Mrs. White': '⚪',
+  'Mr. Green': '🟢',
+  'Mrs. Peacock': '🔵',
+  'Professor Plum': '🟣',
+};
+
+// Map server character codes (e.g. GREEN) to friendly names used in the UI
+const CHARACTER_NAME_FROM_CODE: Record<string, string> = {
+  SCARLET: 'Miss Scarlet',
+  MUSTARD: 'Colonel Mustard',
+  WHITE: 'Mrs. White',
+  GREEN: 'Mr. Green',
+  PEACOCK: 'Mrs. Peacock',
+  PLUM: 'Professor Plum',
 };
 
 function getCharacterEmoji(character: string): string {
-  return CHARACTER_EMOJI[character] || '🧑';
+  if (!character) return '';
+  // If the server already sent a friendly name, use it directly
+  if (CHARACTER_EMOJI[character]) return CHARACTER_EMOJI[character];
+  // Otherwise, try treating it as a server code and map to friendly name
+  const upper = character.toUpperCase();
+  const friendly = CHARACTER_NAME_FROM_CODE[upper];
+  if (friendly && CHARACTER_EMOJI[friendly]) return CHARACTER_EMOJI[friendly];
+  // Fallback: return the raw character string (so something shows)
+  return character;
 }
 
 export function Board({ snapshot, onRoomClick }: Props) {
@@ -24,7 +42,7 @@ export function Board({ snapshot, onRoomClick }: Props) {
   const gridLayout = [
     ['STUDY', 'STUDY_HALL', 'HALL', 'HALL_LOUNGE', 'LOUNGE'],
     ['STUDY_LIBRARY', 'x', 'HALL_BILLIARD', 'x', 'LOUNGE_DINING'],
-    ['LIBRARY', 'LIBRARY_BILLIARD', 'BILLIARD_ROOM', 'BILLIARD_DINING', 'DINING_ROOM'],
+    ['LIBRARY', 'LIBRARY_BILLIARD', 'BILLIARD', 'BILLIARD_DINING', 'DINING'],
     ['LIBRARY_CONSERVATORY', 'x', 'BILLIARD_BALLROOM', 'x', 'DINING_KITCHEN'],
     ['CONSERVATORY', 'CONSERVATORY_BALLROOM', 'BALLROOM', 'BALLROOM_KITCHEN', 'KITCHEN']
   ];
@@ -35,8 +53,8 @@ export function Board({ snapshot, onRoomClick }: Props) {
     'HALL': 'HALL',
     'LOUNGE': 'LOUNGE',
     'LIBRARY': 'LIBRARY',
-    'BILLIARD': 'BILLIARD_ROOM',
-    'DINING': 'DINING_ROOM',
+    'BILLIARD': 'BILLIARD',
+    'DINING': 'DINING',
     'CONSERVATORY': 'CONSERVATORY',
     'BALLROOM': 'BALLROOM',
     'KITCHEN': 'KITCHEN',
@@ -53,9 +71,9 @@ export function Board({ snapshot, onRoomClick }: Props) {
         return 'bg-gradient-to-br from-red-200 to-red-300 border-red-400';
       case 'LIBRARY':
         return 'bg-gradient-to-br from-green-200 to-green-300 border-green-400';
-      case 'BILLIARD_ROOM':
+      case 'BILLIARD':
         return 'bg-gradient-to-br from-emerald-200 to-emerald-300 border-emerald-400';
-      case 'DINING_ROOM':
+      case 'DINING':
         return 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400';
       case 'CONSERVATORY':
         return 'bg-gradient-to-br from-teal-200 to-teal-300 border-teal-400';
@@ -78,9 +96,9 @@ export function Board({ snapshot, onRoomClick }: Props) {
         return '🛋️';
       case 'LIBRARY':
         return '📖';
-      case 'BILLIARD_ROOM':
+      case 'BILLIARD':
         return '🎱';
-      case 'DINING_ROOM':
+      case 'DINING':
         return '🍽️';
       case 'CONSERVATORY':
         return '🌿';
@@ -103,9 +121,9 @@ export function Board({ snapshot, onRoomClick }: Props) {
         return 'Lounge';
       case 'LIBRARY':
         return 'Library';
-      case 'BILLIARD_ROOM':
+      case 'BILLIARD':
         return 'Billiard Room';
-      case 'DINING_ROOM':
+      case 'DINING':
         return 'Dining Room';
       case 'CONSERVATORY':
         return 'Conservatory';
@@ -116,6 +134,15 @@ export function Board({ snapshot, onRoomClick }: Props) {
       default:
         return roomId.replace(/_/g, ' ');
     }
+  };
+
+  // Normalize hallway ID to server's canonical format (alphabetical ordering)
+  const getCanonicalHallwayId = (hallwayId: string): string => {
+    const parts = hallwayId.split('_');
+    if (parts.length !== 2) return hallwayId;
+    const [a, b] = parts;
+    // Server uses alphabetical ordering
+    return a.localeCompare(b) <= 0 ? hallwayId : `${b}_${a}`;
   };
 
   // Get players in a specific location
@@ -138,9 +165,13 @@ export function Board({ snapshot, onRoomClick }: Props) {
       });
     }
     
-    // For hallways, check location field
+    // For hallways, normalize both client and server IDs for comparison
+    const canonicalCellId = getCanonicalHallwayId(cellId);
     return snapshot.players.filter(p => {
-      if (p.location?.type === 'HALLWAY' && p.location.name === cellId) return true;
+      if (p.location?.type === 'HALLWAY') {
+        const canonicalServerLocation = getCanonicalHallwayId(p.location.name);
+        return canonicalServerLocation === canonicalCellId;
+      }
       return false;
     });
   };
@@ -197,15 +228,17 @@ export function Board({ snapshot, onRoomClick }: Props) {
         >
           {/* Player tokens in hallway */}
           <div className="absolute inset-0 flex justify-center items-center">
-            {playersHere.map((player, index) => (
-              <div
-                key={player.name}
-                className={`text-2xl ${index > 0 ? 'scale-75 -ml-2' : ''}`}
-                title={`${player.name} (${player.character})`}
-              >
-                {getCharacterEmoji(player.character)}
-              </div>
-            ))}
+            {playersHere.length > 0 ? (
+              playersHere.map((player, index) => (
+                <div
+                  key={player.name}
+                  className={`text-2xl ${index > 0 ? 'scale-75 -ml-2' : ''}`}
+                  title={`${player.name} (${player.character})`}
+                >
+                  {getCharacterEmoji(player.character)}
+                </div>
+              ))
+            ) : null}
           </div>
           
           {/* Connection indicators */}

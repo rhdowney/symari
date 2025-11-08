@@ -136,7 +136,7 @@ public class MessageRouter {
                     joined.computeIfAbsent(gameId, k -> ConcurrentHashMap.newKeySet()).add(playerId);
                     subscribe(gameId, out);
 
-                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState()));
+                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
                     send(out, "{\"type\":\"ACK\",\"for\":\"JOIN\",\"gameId\":\"" + esc(gameId) + "\",\"playerId\":\"" + esc(p.getName()) + "\",\"state\":" + stateJson + "}");
                     broadcast(gameId, "{\"type\":\"EVENT\",\"event\":\"JOIN\",\"gameId\":\"" + esc(gameId) + "\",\"playerId\":\"" + esc(playerId) + "\",\"state\":" + stateJson + "}", out);
                     break;
@@ -162,7 +162,7 @@ public class MessageRouter {
 
                     boolean ok = engine.handleMove(playerId, room);
                     if (ok) {
-                        String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState()));
+                        String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
                         String ack = "{\"type\":\"ACK\",\"for\":\"MOVE\",\"gameId\":\"" + esc(gameId) + "\",\"playerId\":\"" + esc(playerId) + "\",\"room\":\"" + esc(room) + "\",\"state\":" + stateJson + "}";
                         send(out, ack);
                         broadcast(gameId, "{\"type\":\"EVENT\",\"event\":\"MOVE\",\"gameId\":\"" + esc(gameId) + "\",\"playerId\":\"" + esc(playerId) + "\",\"room\":\"" + esc(room) + "\",\"state\":" + stateJson + "}", out);
@@ -295,7 +295,7 @@ public class MessageRouter {
                     if (!RuleValidator.isValidAccusation(suspect, weapon, room)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Invalid accusation\"}"); break; }
 
                     AccusationResult res = engine.handleAccusation(playerId, suspect, weapon, room);
-                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState()));
+                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
                     if (res.isCorrect()) {
                         String ack = "{\"type\":\"ACK\",\"for\":\"ACCUSE\",\"result\":\"WIN\",\"gameOver\":true,\"winner\":\"" + esc(res.getWinner()) + "\",\"state\":" + stateJson + "}";
                         send(out, ack);
@@ -321,7 +321,7 @@ public class MessageRouter {
                     if (!engine.isPlayersTurn(playerId)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Not your turn\"}"); break; }
 
                     engine.advanceTurn();
-                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState()));
+                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
                     String ack = "{\"type\":\"ACK\",\"for\":\"END_TURN\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + stateJson + "}";
                     send(out, ack);
                     broadcast(gameId, "{\"type\":\"EVENT\",\"event\":\"TURN\",\"gameId\":\"" + esc(gameId) + "\",\"state\":" + stateJson + "}", out);
@@ -392,16 +392,17 @@ public class MessageRouter {
             pm.put("name", p.getName());
             pm.put("character", p.getCharacterName());
             pm.put("room", p.getCurrentRoom() != null ? p.getCurrentRoom().getName() : null);
-            if (p.getLocation() instanceof Board.Hallway h) {
-                pm.put("location", new LinkedHashMap<String, Object>() {{
-                    put("type", "HALLWAY");
-                    put("name", h.getName());
-                }});
+            if (p.getLocation() instanceof Board.Hallway) {
+                Board.Hallway h = (Board.Hallway) p.getLocation();
+                Map<String, Object> loc = new LinkedHashMap<>();
+                loc.put("type", "HALLWAY");
+                loc.put("name", h.getId());
+                pm.put("location", loc);
             } else if (p.getCurrentRoom() != null) {
-                pm.put("location", new LinkedHashMap<String, Object>() {{
-                    put("type", "ROOM");
-                    put("name", p.getCurrentRoom().getName());
-                }});
+                Map<String, Object> loc = new LinkedHashMap<>();
+                loc.put("type", "ROOM");
+                loc.put("name", p.getCurrentRoom().getName());
+                pm.put("location", loc);
             } else {
                 pm.put("location", null);
             }
