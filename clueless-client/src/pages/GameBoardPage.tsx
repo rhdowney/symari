@@ -319,7 +319,10 @@ export default function GameBoardPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">Clue-Less</h1>
-          <p className="text-sm text-gray-400">Playing as: {playerId}</p>
+          <p className="text-sm text-gray-400">
+            Playing as: {playerId}
+            {myCharacter && <span className="font-semibold text-gray-300"> ({myCharacter})</span>}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {error && (
