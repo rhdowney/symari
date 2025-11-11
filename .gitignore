@@ -1,5 +1,11 @@
+# MacOS folder file
 .DS_Store
+
+# Image files
 *.png
+
+# VS Code settings
+.vscode/*
 
 ### MAVEN ###
 target/
