@@ -22,11 +22,12 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.0.0-M8</version>
         <configuration>
-          <archiive>
+          <archive>
             <manifest>
               <addClasspath>true</addClasspath>
               <mainClass>symari.clueless.App</mainClass>
             </manifest>
+          </archive>
         </configuration>
       </plugin>
     </plugins>
