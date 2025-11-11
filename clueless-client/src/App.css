@@ -66,6 +66,7 @@
   transition: border-color 120ms ease, transform 80ms ease;
 }
 .tile:hover { border-color: #6aa9ff; transform: translateY(-1px); }
+.tile-occupied { border-color: #4a9aff; background: #2f3a4b; }
 .tile-name { font-weight: 700; font-size: 14px; letter-spacing: 0.5px; }
 .tile-occupants { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -77,4 +78,13 @@
   padding: 2px 6px;
   font-size: 12px;
   border: 1px solid #0a4;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
