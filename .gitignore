@@ -5,7 +5,7 @@
 *.png
 
 # VS Code settings
-.vscode/*
+.vscode/settings.json
 
 ### MAVEN ###
 target/
