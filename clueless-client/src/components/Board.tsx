@@ -234,8 +234,8 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
             flex items-center justify-center
           `}
           style={{
-            height: isHorizontalHallway ? '1.5rem' : '6rem',
-            width: isVerticalHallway ? '1.5rem' : '6rem',
+            height: isHorizontalHallway ? '2rem' : '5rem',
+            width: isVerticalHallway ? '2rem' : '5rem',
             margin: 'auto',
             // Fallback background/border without Tailwind
             background: isValidMove ? '#86efac' : '#d1d5db', // green-300 if valid, gray-300 otherwise
