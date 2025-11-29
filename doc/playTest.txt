@@ -1,0 +1,5 @@
+cd <path-to-clueless-server>
+mvn compile
+mvn exec:java -Dexec.mainClass=edu.jhu.clueless.App
+cd <path-to-clueless-client>
+npm run dev
