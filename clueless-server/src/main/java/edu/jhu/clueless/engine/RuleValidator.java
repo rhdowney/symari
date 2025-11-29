@@ -12,9 +12,11 @@ public class RuleValidator {
         return board.areAdjacent(current, targetRoom);
     }
 
-    // Player must be in a room to suggest
+    // Player must be in a room to suggest, and must not have suggested this
+    // turn
     public static boolean canSuggest(Player player) {
-        return player != null && player.getCurrentRoom() != null;
+        return player != null && player.getCurrentRoom() != null &&
+            !player.hasSuggestedThisTurn();
     }
 
     // Player must be in a room and the provided room name must match the current room.
