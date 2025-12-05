@@ -49,6 +49,7 @@ export default function GameBoardPage() {
     revealedCard: string | null;
   } | null>(null);
   const [hasMovedThisTurn, setHasMovedThisTurn] = useState(false);
+  const [hasSuggestedThisTurn, setHasSuggestedThisTurn] = useState(false);
 
   // Handle SUGGEST ACK messages (private result with revealed card)
   useEffect(() => {
@@ -77,11 +78,12 @@ export default function GameBoardPage() {
     return getCurrentPlayerLocation();
   }, [getCurrentPlayerLocation]);
 
-  // Reset hasMovedThisTurn when turn changes
+  // Reset hasMovedThisTurn and hasSuggestedThisTurn when turn changes
   useEffect(() => {
     if (gameState?.currentPlayer === playerId) {
-      // It's now my turn - reset the moved flag
+      // It's now my turn - reset the moved and suggested flags
       setHasMovedThisTurn(false);
+      setHasSuggestedThisTurn(false);
     }
   }, [gameState?.currentPlayer, playerId]);
 
@@ -117,14 +119,16 @@ export default function GameBoardPage() {
     const isMyTurn = gameState.currentPlayer === playerId;
     const myPlayer = gameState.players.find(p => p.name === playerId);
     const myCards = myPlayer?.hand || [];
-    const canSuggest = currentLocation ? canMakeSuggestion(currentLocation) : false;
+    const canSuggest = currentLocation 
+      ? canMakeSuggestion(currentLocation) && !hasSuggestedThisTurn
+      : false;
     
     return {
       isMyTurn,
       myCards,
       canSuggest
     };
-  }, [gameState, playerId, currentLocation]);
+  }, [gameState, playerId, currentLocation, hasSuggestedThisTurn]);
 
   // Calculate matching cards for disprove
   const matchingCardsForDisprove = useMemo(() => {
@@ -239,6 +243,9 @@ export default function GameBoardPage() {
       playerId,
       payload: { suspect, weapon, room }
     });
+    
+    // Mark that we've suggested this turn (mirrors server's hasSuggestedThisTurn flag)
+    setHasSuggestedThisTurn(true);
   }, [send, playerId, gameId]);
   
   const handleAccuse = useCallback(() => {
