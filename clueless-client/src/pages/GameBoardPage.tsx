@@ -12,6 +12,7 @@ import ToastNotification from "../components/GameBoard/ToastNotification";
 import ActionBar from "../components/GameBoard/ActionBar";
 import HandPanel from "../components/GameBoard/HandPanel";
 import EventFeed from "../components/GameBoard/EventFeed";
+import PlayerStatusPanel from "../components/GameBoard/PlayerStatusPanel";
 import MoveSelectionModal from "../components/GameBoard/MoveSelectionModal";
 import SuggestionModal from "../components/GameBoard/SuggestionModal";
 import AccusationModal from "../components/GameBoard/AccusationModal";
@@ -319,62 +320,78 @@ export default function GameBoardPage() {
 
   // Main game board UI
   return (
-    <div className="bg-gray-900 min-h-screen text-white p-4">
+    <div className="bg-gray-900 min-h-screen text-white">
       <ToastNotification gameState={gameState} currentPlayerId={playerId} />
       
       {/* Connection status header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Clue-Less</h1>
-          <p className="text-sm text-gray-400">
-            Playing as: {playerId}
-            {myCharacter && <span className="font-semibold text-gray-300"> ({myCharacter})</span>}
-          </p>
+      <div className="border-b border-gray-800 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Clue-Less</h1>
+            <p className="text-sm text-gray-400">
+              Playing as: {playerId}
+              {myCharacter && <span className="font-semibold text-gray-300"> ({myCharacter})</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {error && (
+              <div className="px-3 py-1 rounded-full bg-red-900 text-red-200 text-sm font-medium">
+                ❌ Error: {error}
+              </div>
+            )}
+            {connected && (
+              <div className="px-3 py-1 rounded-full bg-green-900 text-green-200 text-sm font-medium">
+                ✓ Connected
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {error && (
-            <div className="px-3 py-1 rounded-full bg-red-900 text-red-200 text-sm font-medium">
-              ❌ Error: {error}
+      </div>
+      
+      {/* Main 3-Column Layout - Desktop Only */}
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex gap-6">
+          {/* Left Sidebar - Hand (Sticky) */}
+          <aside className="w-80 flex-shrink-0">
+            <div className="sticky top-6">
+              <HandPanel cards={gameLogicValues.myCards} />
             </div>
-          )}
-          {connected && (
-            <div className="px-3 py-1 rounded-full bg-green-900 text-green-200 text-sm font-medium">
-              ✓ Connected
+          </aside>
+          
+          {/* Center - Game Board + Action Bar */}
+          <main className="flex-1 min-w-0 space-y-6">
+            {/* Game Board */}
+            <div className="flex justify-center">
+              <Board 
+                snapshot={gameState}
+                onRoomClick={handleLocationClick}
+                validMoves={validMoves}
+                isMyTurn={gameLogicValues.isMyTurn}
+              />
             </div>
-          )}
+            
+            {/* Action Bar */}
+            <div>
+              <ActionBar 
+                isMyTurn={gameLogicValues.isMyTurn}
+                onSuggest={handleSuggest}
+                onAccuse={handleAccuse}
+                onEndTurn={handleEndTurn}
+                canSuggest={gameLogicValues.canSuggest}
+                canAccuse={canMakeAccusation()}
+              />
+            </div>
+          </main>
+          
+          {/* Right Sidebar - Players + Event Feed */}
+          <aside className="w-80 flex-shrink-0 space-y-6">
+            <PlayerStatusPanel 
+              gameState={gameState}
+              currentPlayerId={playerId}
+            />
+            <EventFeed events={eventFeed} />
+          </aside>
         </div>
-      </div>
-      
-      {/* Game Board */}
-      <div className="flex justify-center mb-6">
-        <Board 
-          snapshot={gameState}
-          onRoomClick={handleLocationClick}
-          validMoves={validMoves}
-          isMyTurn={gameLogicValues.isMyTurn}
-        />
-      </div>
-      
-      {/* Action Bar */}
-      <div className="mb-6">
-        <ActionBar 
-          isMyTurn={gameLogicValues.isMyTurn}
-          onSuggest={handleSuggest}
-          onAccuse={handleAccuse}
-          onEndTurn={handleEndTurn}
-          canSuggest={gameLogicValues.canSuggest}
-          canAccuse={canMakeAccusation()}
-        />
-      </div>
-      
-      {/* Hand Panel */}
-      <div className="mb-6">
-        <HandPanel cards={gameLogicValues.myCards} />
-      </div>
-      
-      {/* Event Feed */}
-      <div className="mb-6">
-        <EventFeed events={eventFeed} />
       </div>
       
       {/* Move selection modal */}

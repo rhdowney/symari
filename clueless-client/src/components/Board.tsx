@@ -63,30 +63,10 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
     'KITCHEN': 'KITCHEN',
   };
 
-  // Room-specific styling and icons
+  // Room styling - unified color scheme
   const getRoomStyle = (roomId: string) => {
-    switch (roomId) {
-      case 'STUDY':
-        return 'bg-gradient-to-br from-amber-200 to-amber-300 border-amber-400';
-      case 'HALL':
-        return 'bg-gradient-to-br from-stone-200 to-stone-300 border-stone-400';
-      case 'LOUNGE':
-        return 'bg-gradient-to-br from-red-200 to-red-300 border-red-400';
-      case 'LIBRARY':
-        return 'bg-gradient-to-br from-green-200 to-green-300 border-green-400';
-      case 'BILLIARD':
-        return 'bg-gradient-to-br from-emerald-200 to-emerald-300 border-emerald-400';
-      case 'DINING':
-        return 'bg-gradient-to-br from-orange-200 to-orange-300 border-orange-400';
-      case 'CONSERVATORY':
-        return 'bg-gradient-to-br from-teal-200 to-teal-300 border-teal-400';
-      case 'BALLROOM':
-        return 'bg-gradient-to-br from-purple-200 to-purple-300 border-purple-400';
-      case 'KITCHEN':
-        return 'bg-gradient-to-br from-yellow-200 to-yellow-300 border-yellow-400';
-      default:
-        return 'bg-gradient-to-br from-gray-200 to-gray-300 border-gray-400';
-    }
+    // All rooms use the same blue-gray gradient for consistency
+    return 'bg-gradient-to-br from-slate-300 to-slate-400 border-slate-500';
   };
 
   const getRoomIcon = (roomId: string) => {
@@ -292,8 +272,8 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
             hover:brightness-110
           `}
           style={{
-            height: '5.5rem',
-            width: '5.5rem',
+            height: '7rem',
+            width: '6rem',
             ...(isValidMove && {
               boxShadow: '0 0 20px 4px rgba(34, 197, 94, 0.6)',
               border: '3px solid #22c55e'
@@ -301,17 +281,17 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
           }}
           onClick={() => onRoomClick?.(cellId)}
         >
-          {/* Room name and icon */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10 pointer-events-none">
+          {/* Room name and icon - slightly above center */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-20 pointer-events-none pb-4">
             <div className="text-lg mb-1">{getRoomIcon(cellId)}</div>
-            <div className="text-xs font-bold text-gray-800 leading-tight bg-white bg-opacity-80 px-1 rounded">
+            <div className="text-xs font-bold text-gray-800 leading-tight bg-white bg-opacity-90 px-1.5 py-0.5 rounded shadow-sm">
               {getRoomName(cellId)}
             </div>
           </div>
           
-          {/* Player tokens in room */}
+          {/* Player tokens in room - at the bottom */}
           {playersHere.length > 0 && (
-            <div className="absolute bottom-0.5 left-0.5 right-0.5 flex flex-row gap-0.5 justify-center items-center z-20 bg-black bg-opacity-20 rounded px-0.5 py-0.5">
+            <div className="absolute bottom-1 left-1 right-1 flex flex-row gap-0.5 justify-center items-center z-10">
               {playersHere.map((player, index) => {
                 console.log(`Rendering player in ${cellId}: ${player.name} (${player.character}) - index ${index}`);
                 return (
@@ -357,7 +337,7 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
 
   return (
     <div
-      className="w-full max-w-2xl mx-auto bg-gray-800 p-3 rounded-lg relative"
+      className="bg-gray-800 p-3 rounded-lg relative inline-block"
       style={{
         // Fallback styles when Tailwind is not present
         background: '#1f2937', // gray-800
@@ -366,14 +346,14 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
       }}
     >
       <div
-        className="grid grid-cols-5 gap-2 items-center justify-items-center relative w-full"
+        className="grid grid-cols-5 gap-2 items-center justify-items-center relative"
         style={{
           // Ensure grid layout without Tailwind
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, 5.5rem)',
+          gridTemplateColumns: 'repeat(5, 6rem)',
+          gridTemplateRows: 'repeat(5, 7rem)',
           gap: '0.5rem',
           placeItems: 'center',
-          width: '100%',
         }}
       >
         {gridLayout.map((row, rowIndex) =>
@@ -385,8 +365,8 @@ export function Board({ snapshot, onRoomClick, validMoves = [], isMyTurn = false
                   className="bg-gray-800"
                   style={{
                     // Match room size
-                    height: '5.5rem',
-                    width: '5.5rem',
+                    height: '7rem',
+                    width: '6rem',
                     background: 'transparent',
                   }}
                 />

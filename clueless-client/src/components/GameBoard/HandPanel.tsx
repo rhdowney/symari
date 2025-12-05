@@ -134,15 +134,16 @@ export default function HandPanel({ cards }: HandPanelProps) {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 flex-1 overflow-auto">
-      <h3 className="text-sm font-semibold text-gray-400 mb-3">
-        Your Cards ({cards.length})
+    <div className="bg-gray-800 rounded-lg p-4 shadow-lg">
+      <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+        <span>🎴</span>
+        <span>Your Hand ({cards.length})</span>
       </h3>
       
       {cards.length === 0 ? (
         <p className="text-gray-500 text-sm">No cards yet...</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="space-y-2">
           {cards.map((card, index) => {
             const colors = getCardColors(card.type);
             // Format card type to sentence case
@@ -160,20 +161,24 @@ export default function HandPanel({ cards }: HandPanelProps) {
             return (
               <div
                 key={card.id || index}
-                className="p-4 rounded-xl border-2 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 flex items-center justify-center"
+                className="p-3 rounded-lg border-2 shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-102"
                 style={{
                   background: colors.background,
                   borderColor: colors.borderColor,
-                  minHeight: '40px'
                 }}
               >
-              {/* Card type, emoji and name in one line */}
-              <div className="flex items-center text-white text-sm">
-                <span className="font-semibold">{typeDisplay}:</span>
-                <span className="text-2xl mx-2">{getCardEmoji(card)}</span>
-                <span className="font-bold">{formatCardName(card.name)}</span>
+                <div className="flex items-center gap-2 text-white">
+                  <span className="text-2xl flex-shrink-0">{getCardEmoji(card)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-300 uppercase tracking-wide">
+                      {typeDisplay}
+                    </div>
+                    <div className="font-bold text-sm truncate">
+                      {formatCardName(card.name)}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
             );
           })}
         </div>
