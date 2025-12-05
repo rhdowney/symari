@@ -52,9 +52,9 @@ const CHARACTER_INFO: Record<string, { name: string; emoji: string; bg: string; 
   WHITE: { 
     name: "Mrs. White", 
     emoji: "⚪", 
-    bg: "bg-gray-100", 
-    hover: "hover:bg-gray-200", 
-    border: "border-gray-400" 
+    bg: "bg-gray-600", 
+    hover: "hover:bg-gray-700", 
+    border: "border-gray-500" 
   },
 };
 
@@ -115,11 +115,10 @@ export function Lobby({
                     }}
                     disabled={!isAvailable && !isMyCharacter}
                     className={`
-                      relative p-6 rounded-xl border-2 font-bold transition-all
+                      relative p-6 rounded-xl border-2 font-bold transition-all text-white
                       ${info.bg} ${info.hover} ${info.border}
                       ${isMyCharacter ? "ring-4 ring-blue-400 scale-105 shadow-xl" : ""}
                       ${!isAvailable && !isMyCharacter ? "opacity-40 cursor-not-allowed" : "shadow-lg"}
-                      ${char === "WHITE" ? "text-gray-900" : "text-white"}
                     `}
                   >
                     <div className="text-5xl mb-2">{info.emoji}</div>
