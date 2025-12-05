@@ -42,19 +42,27 @@ public class SuggestionHandler {
         //    so we return no-disprover.
         String disprover = null;
         String revealedCard = null;
+        List<String> candidateCards = null;
 
-        // Attempt to disprove by scanning players in turn order starting after suggester
+        // Attempt to find first player able to disprove, but DO NOT auto-reveal; collect candidates and let UI choose.
         for (Player cand : playersInTurnOrderStartingAfter(player)) {
             List<Card> matches = matchingCards(cand, suspect, weapon, room);
             if (!matches.isEmpty()) {
-                Card chosen = matches.get(0); // simple policy: first matching card
                 disprover = cand.getName();
-                revealedCard = chosen.getName();
+                candidateCards = new ArrayList<>();
+                for (Card c : matches) candidateCards.add(c.getName());
                 break;
             }
         }
 
-        return new SuggestionResult(true, playerName, suspect, weapon, room, disprover, revealedCard);
+        SuggestionResult sr = new SuggestionResult(true, playerName, suspect, weapon, room, disprover, revealedCard);
+        // Temporary: store candidate cards in revealedCard field as comma-separated until DTO adjusted
+        if (candidateCards != null && revealedCard == null) {
+            // Join candidates for router to parse and send a DISPROVE_REQUEST
+            String joined = String.join(",", candidateCards);
+            return new SuggestionResult(true, playerName, suspect, weapon, room, disprover, joined);
+        }
+        return sr;
     }
 
     private Player findPlayerByCharacter(String characterName) {
@@ -80,6 +88,8 @@ public class SuggestionHandler {
         if (cur == targetRoom) return;
         p.setCurrentRoom(targetRoom);
         targetRoom.addOccupant(p);
+        // Mark that this room entry was due to a suggestion
+        p.setEnteredRoomBySuggestion();
     }
 
     private List<Card> matchingCards(Player p, String suspect, String weapon, String room) {

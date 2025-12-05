@@ -157,6 +157,11 @@ public class MessageRouter {
                     if (p == null || target == null) { send(out, "{\"type\":\"ERROR\",\"message\":\"Unknown player or room\"}"); break; }
                     if (!p.isActive()) { send(out, "{\"type\":\"ERROR\",\"message\":\"Player eliminated\"}"); break; }
                     if (!engine.isPlayersTurn(playerId)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Not your turn\"}"); break; }
+                    // If in a room entered by self, enforce moving to a hallway or different room (adjacent move)
+                    if (p.getCurrentRoom() != null && p.getRoomEntryType() == Player.RoomEntryType.SELF && p.hasMovedThisTurn()) {
+                        send(out, "{\"type\":\"ERROR\",\"message\":\"Must exit room before other actions\"}");
+                        break;
+                    }
                     if (p.hasMovedThisTurn() && p.getCurrentRoom() != null) { send(out, "{\"type\":\"ERROR\",\"message\":\"Already moved this turn\"}"); break; }
                     if (p.getCurrentRoom() != null && !engine.getBoard().areAdjacent(p.getCurrentRoom(), target)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Not adjacent\"}"); break; }
 
@@ -247,6 +252,8 @@ public class MessageRouter {
                     if (!engine.isPlayersTurn(playerId)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Not your turn\"}"); break; }
                     if (p.hasSuggestedThisTurn()) { send(out, "{\"type\":\"ERROR\",\"message\":\"Already suggested this turn\"}"); break; }
                     if (!RuleValidator.canSuggest(p)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Must be in a room\"}"); break; }
+                    // Enforce must-exit rule: if player entered room by self, they must move out before suggesting
+                    if (p.mustExitRoomBeforeActions()) { send(out, "{\"type\":\"ERROR\",\"message\":\"Must exit room before suggesting\"}"); break; }
                     if (room == null || p.getCurrentRoom() == null || !p.getCurrentRoom().getName().equalsIgnoreCase(room)) {
                         send(out, "{\"type\":\"ERROR\",\"message\":\"Suggestion must be for your current room\"}");
                         break;
@@ -255,25 +262,85 @@ public class MessageRouter {
                     SuggestionResult res = engine.handleSuggestionDetailed(playerId, suspect, weapon, room);
                     if (res.isAccepted()) {
                         String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
-                        // Private ACK to suggester includes revealedCard (if any) and disprover
-                        String ack = "{\"type\":\"ACK\",\"for\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
-                                "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
-                                "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
-                                "\",\"disprover\":\"" + (res.getDisprover() == null ? "" : esc(res.getDisprover())) +
-                                "\",\"revealedCard\":\"" + (res.getRevealedCard() == null ? "" : esc(res.getRevealedCard())) +
-                                "\",\"state\":" + stateJson + "}";
-                        send(out, ack);
 
-                        // Public broadcast without the revealed card content
-                        String pub = "{\"type\":\"EVENT\",\"event\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
-                                "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
-                                "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
-                                "\",\"disprover\":\"" + (res.getDisprover() == null ? "" : esc(res.getDisprover())) +
-                                "\",\"state\":" + stateJson + "}";
-                        broadcast(gameId, pub, out);
+                        // If there is a disprover with candidate cards, send DISPROVE_REQUEST to that player and ACK suggester that request was sent
+                        String disprover = res.getDisprover();
+                        String candidatesCsv = res.getRevealedCard(); // temporarily encoded list
+                        if (disprover != null && candidatesCsv != null && !candidatesCsv.isBlank()) {
+                            // ACK to suggester that a disprove request was sent
+                            String ack = "{\"type\":\"ACK\",\"for\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
+                                    "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
+                                    "\",\"disprover\":\"" + esc(disprover) +
+                                    "\",\"state\":" + stateJson + "}";
+                            send(out, ack);
+
+                            // Send DISPROVE_REQUEST to the disprover only (private)
+                            String req = "{\"type\":\"DISPROVE_REQUEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"suggester\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
+                                    "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
+                                    "\",\"candidateCards\":\"" + esc(candidatesCsv) + "\"}";
+                            // deliver to disprover's subscriber(s)
+                            var subs = subscribers.getOrDefault(gameId, Collections.emptySet());
+                            for (PrintWriter w : subs) {
+                                try { w.println(req); } catch (Exception ignored) {}
+                            }
+
+                            // Broadcast suggest event (without revealed card)
+                            String pub = "{\"type\":\"EVENT\",\"event\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
+                                    "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
+                                    "\",\"disprover\":\"" + esc(disprover) +
+                                    "\",\"state\":" + stateJson + "}";
+                            broadcast(gameId, pub, out);
+                        } else {
+                            // No disprover found -> broadcast as before with no revealed card
+                            String ack = "{\"type\":\"ACK\",\"for\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
+                                    "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
+                                    "\",\"state\":" + stateJson + "}";
+                            send(out, ack);
+                            String pub = "{\"type\":\"EVENT\",\"event\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"playerId\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
+                                    "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
+                                    "\",\"state\":" + stateJson + "}";
+                            broadcast(gameId, pub, out);
+                        }
                     } else {
                         send(out, "{\"type\":\"ERROR\",\"message\":\"Cannot suggest now\"}");
                     }
+                    break;
+                }
+                case DISPROVE_RESPONSE: {
+                    String gameId = nz(msg.getGameId(), "default");
+                    String playerId = nz(msg.getPlayerId(), firstString(msg.getPayload(), "player","playerId")); // the disprover
+                    String chosenCard = firstString(msg.getPayload(), "card","chosen","chosenCard");
+                    String suggester = firstString(msg.getPayload(), "suggester","suggestedBy");
+
+                    GameEngine engine = getOrCreateEngine(gameId);
+                    var gs = engine.getGameState();
+                    if (gs.isGameOver()) { send(out, "{\"type\":\"ERROR\",\"message\":\"Game over\"}"); break; }
+
+                    if (playerId == null || chosenCard == null || suggester == null) {
+                        send(out, "{\"type\":\"ERROR\",\"message\":\"Missing fields for DISPROVE_RESPONSE\"}");
+                        break;
+                    }
+
+                    // Private reveal to suggester
+                    String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
+                    String ackToSuggester = "{\"type\":\"EVENT\",\"event\":\"DISPROVE_REVEAL\",\"gameId\":\"" + esc(gameId) +
+                            "\",\"suggester\":\"" + esc(suggester) + "\",\"disprover\":\"" + esc(playerId) +
+                            "\",\"card\":\"" + esc(chosenCard) + "\",\"state\":" + stateJson + "}";
+                    // Send only to suggester (best-effort: all subscribers receive, client filters)
+                    var subs = subscribers.getOrDefault(gameId, Collections.emptySet());
+                    for (PrintWriter w : subs) {
+                        try { w.println(ackToSuggester); } catch (Exception ignored) {}
+                    }
+
+                    // Broadcast that disprove happened (no card shown)
+                    String pub = "{\"type\":\"EVENT\",\"event\":\"DISPROVE_DONE\",\"gameId\":\"" + esc(gameId) +
+                            "\",\"disprover\":\"" + esc(playerId) + "\",\"suggester\":\"" + esc(suggester) + "\"}";
+                    broadcast(gameId, pub, null);
                     break;
                 }
                 case ACCUSE: {
@@ -319,6 +386,12 @@ public class MessageRouter {
                     if (p == null) { send(out, "{\"type\":\"ERROR\",\"message\":\"Unknown player\"}"); break; }
                     if (!p.isActive()) { send(out, "{\"type\":\"ERROR\",\"message\":\"Player eliminated\"}"); break; }
                     if (!engine.isPlayersTurn(playerId)) { send(out, "{\"type\":\"ERROR\",\"message\":\"Not your turn\"}"); break; }
+                    // Prevent ending turn without exiting if entered by self; players shouldn't camp in rooms
+                    Player cp = gs.getCurrentPlayer();
+                    if (cp != null && cp.mustExitRoomBeforeActions()) {
+                        send(out, "{\"type\":\"ERROR\",\"message\":\"Must exit room before ending turn\"}");
+                        break;
+                    }
 
                     engine.advanceTurn();
                     String stateJson = JsonUtil.toJson(buildSnapshot(engine.getGameState(), engine.getBoard()));
@@ -407,6 +480,8 @@ public class MessageRouter {
                 pm.put("location", null);
             }
             pm.put("active", p.isActive());
+            pm.put("roomEntryType", p.getRoomEntryType().name());
+            pm.put("mustExit", p.mustExitRoomBeforeActions());
             
             // Include player's hand (cards)
             List<Map<String, Object>> hand = new ArrayList<>();

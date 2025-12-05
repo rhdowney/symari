@@ -53,7 +53,15 @@ public class GameEngine {
         boolean ok = moveHandler.handleMove(player, room);
         if (ok) {
             Player p = gameState.getPlayer(player);
-            if (p != null) p.setMovedThisTurn(true);
+            if (p != null) {
+                p.setMovedThisTurn(true);
+                // Entered a room by self movement
+                if (p.getCurrentRoom() != null) {
+                    p.setEnteredRoomBySelf();
+                } else {
+                    p.clearRoomEntryType();
+                }
+            }
         }
         return ok;
     }
@@ -119,6 +127,13 @@ public class GameEngine {
     public boolean handleMoveToHallway(String playerName, String hallwayId) {
         boolean ok = moveHandler.handleMoveToHallway(playerName, hallwayId);
         // Do not set movedThisTurn here; allow exiting hallway to complete the move this turn
+        if (ok) {
+            Player p = gameState.getPlayer(playerName);
+            if (p != null) {
+                // Moving to hallway means leaving room; clear entry type
+                p.clearRoomEntryType();
+            }
+        }
         return ok;
     }
 
@@ -126,7 +141,13 @@ public class GameEngine {
         boolean ok = moveHandler.handleMoveFromHallwayToRoom(playerName, targetRoomName);
         if (ok) {
             Player p = gameState.getPlayer(playerName);
-            if (p != null) p.setMovedThisTurn(true);
+            if (p != null) {
+                p.setMovedThisTurn(true);
+                // Entered room by self (normal movement from hallway into room)
+                if (p.getCurrentRoom() != null) {
+                    p.setEnteredRoomBySelf();
+                }
+            }
         }
         return ok;
     }
