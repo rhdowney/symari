@@ -1,6 +1,7 @@
 package edu.jhu.clueless.engine;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GameState {
     private Map<String, Player> players = new LinkedHashMap<>();
@@ -10,6 +11,18 @@ public class GameState {
     private Solution solution;
     private boolean gameOver;
     private String winner;
+
+    // Add: canonical set of suspects (all 6) and their positions (room/hallway or null)
+    private static final List<String> ALL_SUSPECTS = List.of(
+        "GREEN","PEACOCK","PLUM","SCARLET","MUSTARD","WHITE"
+    );
+
+    private final Map<String,String> suspectPositions = new ConcurrentHashMap<>();
+
+    public GameState() {
+        // initialize suspect positions to null (not placed) or initial setup
+        for (String s : ALL_SUSPECTS) suspectPositions.put(s, null);
+    }
 
     // Accessors and helpers
     public Map<String, Player> getPlayers() { return players; }
@@ -30,6 +43,26 @@ public class GameState {
     public void setGameOver(boolean gameOver) { this.gameOver = gameOver; }
     public String getWinner() { return winner; }
     public void setWinner(String winner) { this.winner = winner; }
+
+    // New accessors
+    public List<String> getAllSuspects() {
+        return Collections.unmodifiableList(ALL_SUSPECTS);
+    }
+
+    public String getSuspectPosition(String suspect) {
+        if (suspect == null) return null;
+        return suspectPositions.get(suspect.toUpperCase());
+    }
+
+    public void setSuspectPosition(String suspect, String roomOrHallway) {
+        if (suspect == null) return;
+        suspectPositions.put(suspect.toUpperCase(), roomOrHallway);
+    }
+
+    // Optional helper used by UI/state snapshot builder
+    public Map<String, String> getSuspectPositions() {
+        return Collections.unmodifiableMap(suspectPositions);
+    }
 
     // Advance turn to next active player (in insertion order)
     public Player nextTurn() {
