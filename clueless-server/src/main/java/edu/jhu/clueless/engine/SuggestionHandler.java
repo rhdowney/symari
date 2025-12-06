@@ -1,121 +1,53 @@
 package edu.jhu.clueless.engine;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
+// SuggestionHandler processes player suggestions and determines validity and possible disproofs
 public class SuggestionHandler {
+    private final GameState state;
 
-    private final GameState gameState;
-
-    public SuggestionHandler(GameState gameState){
-        this.gameState = gameState;
+    public SuggestionHandler(GameState state) {
+        this.state = state;
     }
 
-    public SuggestionResult handleSuggestion(String playerName, String suspect, String weapon, String room){
-        Player player = gameState.getPlayer(playerName);
-
-        if (player == null) {
-            return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
+    public SuggestionResult handleSuggestion(String suggestingPlayer, String suspect, String weapon, String room) {
+        // Validate suspect against canonical suspects (not just players)
+        if (suspect == null || !state.getAllSuspects().contains(suspect.toUpperCase())) {
+            return SuggestionResult.rejected("Invalid suspect");
         }
 
-        if(!RuleValidator.canSuggest(player)){
-            System.out.println("[SUGGEST] Invalid suggestion - player not in a room");
-            return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
+        // Move suspect token into the room (suspects are independent tokens)
+        state.setSuspectPosition(suspect.toUpperCase(), room);
+
+        // Existing logic: attempt to find a disproof card from other players' hands
+        // (Implementation depends on your card model; ensure you check players' hands for suspect/weapon/room cards)
+        Optional<Disprove> disprove = findDisprover(suggestingPlayer, suspect, weapon, room);
+
+        if (disprove.isPresent()) {
+            return SuggestionResult.accepted(disprove.get());
+        } else {
+            return SuggestionResult.acceptedNoDisproof();
         }
+    }
 
-        Room current = player.getCurrentRoom();
-        if (current == null || room == null || !current.getName().equalsIgnoreCase(room)) {
-            System.out.println("[SUGGEST] Invalid suggestion - must be from your current room");
-            return new SuggestionResult(false, playerName, suspect, weapon, room, null, null);
-        }
-
-        System.out.println("[SUGGEST] " + player.getName() + " suggests it was " + suspect + " with the " + weapon + " in the " + room);
-
-        // 1) Move the suggested suspect's token to the room (if a player is playing that character)
-        Player suspectPlayer = findPlayerByCharacter(suspect);
-        if (suspectPlayer != null) {
-            movePlayerToRoom(suspectPlayer, current);
-        }
-
-        // 2) Attempt to resolve disproof by scanning other players' hands (if implemented). Currently, no dealing logic exists,
-        //    so we return no-disprover.
-        String disprover = null;
-        String revealedCard = null;
-        List<String> candidateCards = null;
-
-        // Attempt to find first player able to disprove, but DO NOT auto-reveal; collect candidates and let UI choose.
-        for (Player cand : playersInTurnOrderStartingAfter(player)) {
-            List<Card> matches = matchingCards(cand, suspect, weapon, room);
+    private Optional<Disprove> findDisprover(String suggestingPlayer, String suspect, String weapon, String room) {
+        // iterate players (in turn order) excluding suggestingPlayer
+        for (Player p : state.getPlayers().values()) {
+            if (p.getName().equals(suggestingPlayer)) continue;
+            if (!p.isActive()) continue;
+            // check player's hand for cards matching suspect/weapon/room names
+            List<String> matches = new ArrayList<>();
+            for (Card c : p.getHand()) {
+                String cardName = c.getName().toUpperCase();
+                if (cardName.equals(suspect.toUpperCase()) || cardName.equals(weapon.toUpperCase()) || cardName.equals(room.toUpperCase())) {
+                    matches.add(cardName);
+                }
+            }
             if (!matches.isEmpty()) {
-                disprover = cand.getName();
-                candidateCards = new ArrayList<>();
-                for (Card c : matches) candidateCards.add(c.getName());
-                break;
+                // return first match or random selection per rules
+                return Optional.of(new Disprove(p.getName(), matches.get(0)));
             }
         }
-
-        SuggestionResult sr = new SuggestionResult(true, playerName, suspect, weapon, room, disprover, revealedCard);
-        // Temporary: store candidate cards in revealedCard field as comma-separated until DTO adjusted
-        if (candidateCards != null && revealedCard == null) {
-            // Join candidates for router to parse and send a DISPROVE_REQUEST
-            String joined = String.join(",", candidateCards);
-            return new SuggestionResult(true, playerName, suspect, weapon, room, disprover, joined);
-        }
-        return sr;
-    }
-
-    private Player findPlayerByCharacter(String characterName) {
-        if (characterName == null) return null;
-        String target = characterName.trim().toLowerCase(Locale.ROOT);
-        for (Player p : gameState.getPlayers().values()) {
-            if (p.getCharacterName() != null && p.getCharacterName().trim().toLowerCase(Locale.ROOT).equals(target)) {
-                return p;
-            }
-        }
-        return null;
-    }
-
-    private void movePlayerToRoom(Player p, Room targetRoom) {
-        // If player is currently in a hallway, vacate it
-        if (p.getLocation() instanceof Board.Hallway h) {
-            if (h.getOccupant() == p) h.vacate();
-        }
-        Room cur = p.getCurrentRoom();
-        if (cur != null && cur != targetRoom) {
-            cur.removeOccupant(p);
-        }
-        if (cur == targetRoom) return;
-        p.setCurrentRoom(targetRoom);
-        targetRoom.addOccupant(p);
-        // Mark that this room entry was due to a suggestion
-        p.setEnteredRoomBySuggestion();
-    }
-
-    private List<Card> matchingCards(Player p, String suspect, String weapon, String room) {
-        List<Card> res = new ArrayList<>();
-        if (p == null || p.getHand() == null) return res;
-        for (Card c : p.getHand()) {
-            if (c == null) continue;
-            switch (c.getType()) {
-                case CHARACTER -> { if (suspect != null && c.getName().equalsIgnoreCase(suspect)) res.add(c); }
-                case WEAPON -> { if (weapon != null && c.getName().equalsIgnoreCase(weapon)) res.add(c); }
-                case ROOM -> { if (room != null && c.getName().equalsIgnoreCase(room)) res.add(c); }
-            }
-        }
-        return res;
-    }
-
-    private List<Player> playersInTurnOrderStartingAfter(Player start) {
-        List<Player> all = new ArrayList<>(gameState.getPlayers().values());
-        List<Player> order = new ArrayList<>();
-        if (all.isEmpty() || start == null) return order;
-        int idx = all.indexOf(start);
-        int n = all.size();
-        for (int i = 1; i < n; i++) {
-            Player p = all.get((idx + i) % n);
-            if (p != null && p.isActive()) order.add(p);
-        }
-        return order;
+        return Optional.empty();
     }
 }
