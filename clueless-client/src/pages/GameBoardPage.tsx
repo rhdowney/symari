@@ -122,11 +122,13 @@ export default function GameBoardPage() {
     return getValidMoves(currentLocation, tokens);
   }, [currentLocation, gameState, hasMovedThisTurn]);
 
-  // Get all suspects (all 6 Clue characters, not just players in game)
+  // Get all suspects (all 6 Clue characters, excluding the player's own character)
   const activeSuspects = useMemo(() => {
     // All 6 canonical suspects from Clue game
-    return ['GREEN', 'PEACOCK', 'PLUM', 'SCARLET', 'MUSTARD', 'WHITE'];
-  }, []);
+    const allSuspects = ['GREEN', 'PEACOCK', 'PLUM', 'SCARLET', 'MUSTARD', 'WHITE'];
+    // Player cannot suggest themselves as the suspect
+    return allSuspects.filter(s => s !== myCharacter);
+  }, [myCharacter]);
 
   // Game logic values
   const gameLogicValues = useMemo(() => {

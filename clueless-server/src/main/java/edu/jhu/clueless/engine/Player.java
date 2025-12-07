@@ -55,13 +55,24 @@ public class Player {
     public void setEnteredRoomBySuggestion() { this.roomEntryType = RoomEntryType.SUGGESTION; }
     public void clearRoomEntryType() { this.roomEntryType = RoomEntryType.NONE; }
     /**
-     * Must move out rule: If currently in a room and entry type was SELF from a PREVIOUS turn,
-     * the player must exit the room at the start of their turn before performing other actions.
-     * If they just moved into the room THIS turn, they can suggest.
+     * Must move out rule: A player can only suggest if:
+     * - They just moved into the room this turn (movedThisTurn = true), OR
+     * - They were moved into the room by suggestion (roomEntryType = SUGGESTION)
+     * 
+     * They must exit if they started their turn in a room they entered themselves on a previous turn.
      */
     public boolean mustExitRoomBeforeActions() {
-        // Only must exit if: (1) in a room, (2) entered by SELF, (3) haven't moved THIS turn
-        return this.currentRoom != null && this.roomEntryType == RoomEntryType.SELF && !this.movedThisTurn;
+        // If not in a room, no need to exit
+        if (this.currentRoom == null) return false;
+        
+        // If entered by suggestion (moved by another player), can suggest immediately
+        if (this.roomEntryType == RoomEntryType.SUGGESTION) return false;
+        
+        // If entered by SELF but moved this turn (just entered), can suggest
+        if (this.movedThisTurn) return false;
+        
+        // Otherwise: in room from previous turn, must exit first
+        return true;
     }
 
     // Hand management
