@@ -18,6 +18,28 @@ public class SuggestionHandler {
 
         // Move suspect token into the room (suspects are independent tokens)
         state.setSuspectPosition(suspect.toUpperCase(), room);
+        
+        // If a player is playing as the suggested suspect, move that player to the room
+        Room targetRoom = state.getRoom(room);
+        if (targetRoom != null) {
+            for (Player p : state.getPlayers().values()) {
+                if (p.getCharacterName() != null && p.getCharacterName().equalsIgnoreCase(suspect)) {
+                    // Remove player from their previous location
+                    Room previousRoom = p.getCurrentRoom();
+                    if (previousRoom != null) {
+                        previousRoom.removeOccupant(p);
+                    }
+                    
+                    // Move this player to the room
+                    p.setCurrentRoom(targetRoom);
+                    p.setEnteredRoomBySuggestion();
+                    
+                    // Add player to new room's occupants
+                    targetRoom.addOccupant(p);
+                    break;
+                }
+            }
+        }
 
         // Find disprover and their matching cards
         DisproveInfo disprove = findDisprover(suggestingPlayer, suspect, weapon, room);
