@@ -13,24 +13,25 @@ public class SuggestionHandler {
     public SuggestionResult handleSuggestion(String suggestingPlayer, String suspect, String weapon, String room) {
         // Validate suspect against canonical suspects (not just players)
         if (suspect == null || !state.getAllSuspects().contains(suspect.toUpperCase())) {
-            return SuggestionResult.rejected("Invalid suspect");
+            return new SuggestionResult(false, suggestingPlayer, suspect, weapon, room, null, null);
         }
 
         // Move suspect token into the room (suspects are independent tokens)
         state.setSuspectPosition(suspect.toUpperCase(), room);
 
-        // Existing logic: attempt to find a disproof card from other players' hands
-        // (Implementation depends on your card model; ensure you check players' hands for suspect/weapon/room cards)
-        Optional<Disprove> disprove = findDisprover(suggestingPlayer, suspect, weapon, room);
+        // Find disprover and their matching cards
+        DisproveInfo disprove = findDisprover(suggestingPlayer, suspect, weapon, room);
 
-        if (disprove.isPresent()) {
-            return SuggestionResult.accepted(disprove.get());
+        if (disprove != null) {
+            // Return accepted with disprover name and candidate cards as CSV
+            return new SuggestionResult(true, suggestingPlayer, suspect, weapon, room, disprove.disproverName, disprove.candidateCards);
         } else {
-            return SuggestionResult.acceptedNoDisproof();
+            // No disprover found
+            return new SuggestionResult(true, suggestingPlayer, suspect, weapon, room, null, null);
         }
     }
 
-    private Optional<Disprove> findDisprover(String suggestingPlayer, String suspect, String weapon, String room) {
+    private DisproveInfo findDisprover(String suggestingPlayer, String suspect, String weapon, String room) {
         // iterate players (in turn order) excluding suggestingPlayer
         for (Player p : state.getPlayers().values()) {
             if (p.getName().equals(suggestingPlayer)) continue;
@@ -44,10 +45,22 @@ public class SuggestionHandler {
                 }
             }
             if (!matches.isEmpty()) {
-                // return first match or random selection per rules
-                return Optional.of(new Disprove(p.getName(), matches.get(0)));
+                // Return ALL matching cards as CSV for player to choose from
+                String candidatesCsv = String.join(",", matches);
+                return new DisproveInfo(p.getName(), candidatesCsv);
             }
         }
-        return Optional.empty();
+        return null;
+    }
+
+    // Helper class to hold disprove information
+    private static class DisproveInfo {
+        final String disproverName;
+        final String candidateCards;
+
+        DisproveInfo(String disproverName, String candidateCards) {
+            this.disproverName = disproverName;
+            this.candidateCards = candidateCards;
+        }
     }
 }

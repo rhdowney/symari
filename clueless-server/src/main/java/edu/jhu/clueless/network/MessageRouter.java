@@ -275,16 +275,14 @@ public class MessageRouter {
                                     "\",\"state\":" + stateJson + "}";
                             send(out, ack);
 
-                            // Send DISPROVE_REQUEST to the disprover only (private)
+                            // Send DISPROVE_REQUEST as broadcast (clients filter by disprover field)
                             String req = "{\"type\":\"DISPROVE_REQUEST\",\"gameId\":\"" + esc(gameId) +
+                                    "\",\"disprover\":\"" + esc(disprover) +
                                     "\",\"suggester\":\"" + esc(playerId) + "\",\"suspect\":\"" + esc(suspect) +
                                     "\",\"weapon\":\"" + esc(weapon) + "\",\"room\":\"" + esc(room) +
                                     "\",\"candidateCards\":\"" + esc(candidatesCsv) + "\"}";
-                            // deliver to disprover's subscriber(s)
-                            var subs = subscribers.getOrDefault(gameId, Collections.emptySet());
-                            for (PrintWriter w : subs) {
-                                try { w.println(req); } catch (Exception ignored) {}
-                            }
+                            // Broadcast to all (client will filter based on disprover field)
+                            broadcast(gameId, req, null);
 
                             // Broadcast suggest event (without revealed card)
                             String pub = "{\"type\":\"EVENT\",\"event\":\"SUGGEST\",\"gameId\":\"" + esc(gameId) +
@@ -449,7 +447,9 @@ public class MessageRouter {
                 default: send(out, "{\"type\":\"ERROR\",\"message\":\"Unknown type\"}");
             }
         } catch (Exception e) {
-            send(out, "{\"type\":\"ERROR\",\"message\":\"" + esc(e.getMessage()) + "\"}");
+            e.printStackTrace(); // Print stack trace to console for debugging
+            String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            send(out, "{\"type\":\"ERROR\",\"message\":\"" + esc(errorMsg) + "\"}");
         }
     }
 

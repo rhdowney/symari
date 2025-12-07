@@ -17,6 +17,7 @@ export function usePlayer() {
     suspect: string;
     weapon: string;
     room: string;
+    matchingCards: string[];
   } | null>(null);
 
   // Handle incoming messages
@@ -79,18 +80,21 @@ export function usePlayer() {
         
         setGameEvents(prev => [...prev, eventText]);
         
-        // If I'm the disprover, show the disprove prompt
-        if (disprover === playerId) {
-          setDisprovePrompt({
-            suggester,
-            suspect,
-            weapon,
-            room
-          });
-        }
-        
         if (lastMessage.state) {
           setGameState(lastMessage.state);
+        }
+      } else if (lastMessage.event === 'DISPROVE_REVEAL') {
+        // Private reveal of disprove card to suggester
+        // Card will be shown in SuggestionResultModal, not in event feed
+        if (lastMessage.state) {
+          setGameState(lastMessage.state);
+        }
+      } else if (lastMessage.event === 'DISPROVE_DONE') {
+        // Broadcast that disprove process completed (no card shown publicly)
+        const disprover = lastMessage.disprover || 'Someone';
+        const suggester = lastMessage.suggester || 'Someone';
+        if (playerId !== suggester && playerId !== disprover) {
+          setGameEvents(prev => [...prev, `${disprover} disproved ${suggester}'s suggestion`]);
         }
       } else if (lastMessage.event === 'ACCUSE') {
         // Accusation event - add to event feed
@@ -125,6 +129,36 @@ export function usePlayer() {
         }
       } else if (lastMessage.state) {
         setGameState(lastMessage.state);
+      }
+    }
+
+    // Handle DISPROVE_REQUEST (broadcast message, check if we're the disprover)
+    if (lastMessage.type === 'DISPROVE_REQUEST') {
+      console.log('[usePlayer] DISPROVE_REQUEST received:', lastMessage);
+      console.log('[usePlayer] Current playerId:', playerId);
+      console.log('[usePlayer] Disprover in message:', lastMessage.disprover);
+      console.log('[usePlayer] Match?', lastMessage.disprover === playerId);
+      
+      // Only show modal if current player is the disprover
+      if (lastMessage.disprover === playerId) {
+        const suggester = lastMessage.suggester || 'Someone';
+        const suspect = lastMessage.suspect || '?';
+        const weapon = lastMessage.weapon || '?';
+        const room = lastMessage.room || '?';
+        const candidateCards = lastMessage.candidateCards || '';
+        const matchingCards = candidateCards.split(',').filter(Boolean);
+        
+        console.log('[usePlayer] Setting disprove prompt with matching cards:', matchingCards);
+        
+        setDisprovePrompt({
+          suggester,
+          suspect,
+          weapon,
+          room,
+          matchingCards
+        });
+      } else {
+        console.log('[usePlayer] Not the disprover, ignoring DISPROVE_REQUEST');
       }
     }
   }, [lastMessage, playerId]);

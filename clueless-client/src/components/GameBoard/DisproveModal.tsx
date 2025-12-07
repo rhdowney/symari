@@ -7,6 +7,7 @@ interface DisproveModalProps {
   weapon: string;
   room: string;
   matchingCards: Card[];
+  onSelectCard: (cardName: string) => void;
   onClose: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function DisproveModal({
   weapon,
   room,
   matchingCards,
+  onSelectCard,
   onClose
 }: DisproveModalProps) {
   if (!isOpen) return null;
@@ -68,9 +70,13 @@ export default function DisproveModal({
               </p>
               <div className="space-y-2">
                 {matchingCards.map((card, idx) => (
-                  <div
+                  <button
                     key={idx}
-                    className={`rounded-lg p-3 border-2 ${getCardColor(card.type)}`}
+                    onClick={() => {
+                      onSelectCard(card.name);
+                      onClose();
+                    }}
+                    className={`w-full rounded-lg p-3 border-2 ${getCardColor(card.type)} hover:bg-opacity-40 transition-all cursor-pointer text-left`}
                   >
                     <p className="font-semibold text-white">
                       {formatName(card.name)}
@@ -80,12 +86,12 @@ export default function DisproveModal({
                       {card.type === 'ROOM' && '🏠 Room'}
                       {card.type === 'SUSPECT' && '🕵️ Suspect'}
                     </p>
-                  </div>
+                  </button>
                 ))}
               </div>
               <div className="bg-blue-900 bg-opacity-30 border border-blue-600 rounded-lg p-3 mt-4">
                 <p className="text-blue-200 text-sm">
-                  ℹ️ The server will automatically show one of these cards to {suggester}.
+                  ℹ️ Click a card to reveal it to {suggester}.
                 </p>
               </div>
             </div>

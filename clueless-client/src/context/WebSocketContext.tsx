@@ -1,11 +1,11 @@
-import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useEffect, useState, useCallback, useRef, useReducer } from 'react';
 import { ClueClient } from '../api/ClueClient';
 import type { ServerMsg, ClientMsg } from '../api/types';
 
 interface WebSocketContextValue {
   connected: boolean;
   send: (msg: ClientMsg) => void;
-  lastMessage?: ServerMsg;
+  lastMessage?: ServerMsg & { _timestamp?: number };
   error?: string;
 }
 
@@ -16,11 +16,20 @@ interface WebSocketProviderProps {
   url?: string;
 }
 
+type MessageAction = { type: 'ADD_MESSAGE'; message: ServerMsg & { _timestamp: number } };
+
+function messageReducer(state: (ServerMsg & { _timestamp: number }) | undefined, action: MessageAction) {
+  return action.message;
+}
+
 export function WebSocketProvider({ children, url }: WebSocketProviderProps) {
   const [connected, setConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<ServerMsg>();
+  const [lastMessage, dispatchMessage] = useReducer(messageReducer, undefined);
   const [error, setError] = useState<string>();
   const clientRef = useRef<ClueClient | null>(null);
+  const messageCounterRef = useRef(0);
+  const messageQueueRef = useRef<(ServerMsg & { _timestamp: number })[]>([]);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     const client = new ClueClient(url);
@@ -35,8 +44,33 @@ export function WebSocketProvider({ children, url }: WebSocketProviderProps) {
 
         client.onMessage((msg) => {
           console.log('[WebSocket] Received:', msg);
-          setLastMessage(msg);
+          // Use incrementing counter to ensure each message is unique
+          messageCounterRef.current += 1;
+          const timestamp = messageCounterRef.current;
+          const messageWithTimestamp = { ...msg, _timestamp: timestamp };
+          
+          // Add to queue
+          messageQueueRef.current.push(messageWithTimestamp);
+          
+          // Process queue if not already processing
+          if (!processingRef.current) {
+            processingRef.current = true;
+            processMessageQueue();
+          }
         });
+        
+        function processMessageQueue() {
+          if (messageQueueRef.current.length === 0) {
+            processingRef.current = false;
+            return;
+          }
+          
+          const nextMessage = messageQueueRef.current.shift()!;
+          dispatchMessage({ type: 'ADD_MESSAGE', message: nextMessage });
+          
+          // Process next message after a short delay
+          setTimeout(processMessageQueue, 10);
+        }
       })
       .catch((err) => {
         console.error('[WebSocket] Connection failed:', err);

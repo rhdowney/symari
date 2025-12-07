@@ -11,6 +11,8 @@ export default function SuggestionResultModal({
   revealedCard,
   onClose
 }: SuggestionResultModalProps) {
+  console.log('[SuggestionResultModal] Render:', { isOpen, disprover, revealedCard });
+  
   if (!isOpen) return null;
 
   return (

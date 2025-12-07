@@ -5,6 +5,7 @@ interface ActionBarProps {
   onEndTurn: () => void;
   canSuggest: boolean;
   canAccuse: boolean;
+  mustExitRoom?: boolean;
 }
 
 export default function ActionBar({
@@ -13,17 +14,26 @@ export default function ActionBar({
   onAccuse,
   onEndTurn,
   canSuggest,
-  canAccuse
+  canAccuse,
+  mustExitRoom = false
 }: ActionBarProps) {
   return (
     <div className="bg-gray-800 rounded-lg p-4 shadow-lg">
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           {isMyTurn ? (
-            <div className="text-green-400 font-semibold flex items-center gap-2">
-              <span className="animate-pulse">🎯</span>
-              <span>Your Turn</span>
-            </div>
+            <>
+              <div className="text-green-400 font-semibold flex items-center gap-2">
+                <span className="animate-pulse">🎯</span>
+                <span>Your Turn</span>
+              </div>
+              {mustExitRoom && (
+                <div className="text-yellow-400 text-sm mt-1 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>Must exit room before suggesting</span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-gray-400 text-sm">
               Waiting for other players...

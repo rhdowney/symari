@@ -17,7 +17,7 @@ public class GameState {
         "GREEN","PEACOCK","PLUM","SCARLET","MUSTARD","WHITE"
     );
 
-    private final Map<String,String> suspectPositions = new ConcurrentHashMap<>();
+    private final Map<String,String> suspectPositions = new HashMap<>();
 
     public GameState() {
         // initialize suspect positions to null (not placed) or initial setup

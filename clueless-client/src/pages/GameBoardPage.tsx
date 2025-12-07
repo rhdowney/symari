@@ -52,16 +52,37 @@ export default function GameBoardPage() {
   const [hasMovedThisTurn, setHasMovedThisTurn] = useState(false);
   const [hasSuggestedThisTurn, setHasSuggestedThisTurn] = useState(false);
 
-  // Handle SUGGEST ACK messages (private result with revealed card)
+  // Debug logging for suggestion result state
   useEffect(() => {
-    if (!lastMessage || lastMessage.type !== 'ACK' || lastMessage.for !== 'SUGGEST') return;
+    console.log('[GameBoardPage] Suggestion result state:', {
+      showSuggestionResult,
+      suggestionResult
+    });
+  }, [showSuggestionResult, suggestionResult]);
+
+  // Handle DISPROVE_REVEAL event (private card reveal to suggester)
+  useEffect(() => {
+    if (!lastMessage) return;
+    
+    console.log('[GameBoardPage] Message received:', lastMessage.type, lastMessage.event);
+    
+    if (lastMessage.type !== 'EVENT' || lastMessage.event !== 'DISPROVE_REVEAL') return;
+    
+    console.log('[GameBoardPage] DISPROVE_REVEAL event - suggester:', lastMessage.suggester, 'playerId:', playerId);
+    
+    if (lastMessage.suggester !== playerId) {
+      console.log('[GameBoardPage] Skipping DISPROVE_REVEAL - not for me');
+      return; // Only show to suggester
+    }
     
     const disprover = lastMessage.disprover || null;
-    const revealedCard = lastMessage.revealedCard || null;
+    const revealedCard = lastMessage.card || null;
+    
+    console.log('[GameBoardPage] Showing disprove result:', { disprover, revealedCard });
     
     setSuggestionResult({ disprover, revealedCard });
     setShowSuggestionResult(true);
-  }, [lastMessage]);
+  }, [lastMessage, playerId]);
 
   // Get current player's location from game state
   const getCurrentPlayerLocation = useCallback((): string | null => {
@@ -101,11 +122,11 @@ export default function GameBoardPage() {
     return getValidMoves(currentLocation, tokens);
   }, [currentLocation, gameState, hasMovedThisTurn]);
 
-  // Get active suspects (characters) in the game
+  // Get all suspects (all 6 Clue characters, not just players in game)
   const activeSuspects = useMemo(() => {
-    if (!gameState) return [];
-    return gameState.players.map(p => p.character).filter(Boolean);
-  }, [gameState]);
+    // All 6 canonical suspects from Clue game
+    return ['GREEN', 'PEACOCK', 'PLUM', 'SCARLET', 'MUSTARD', 'WHITE'];
+  }, []);
 
   // Game logic values
   const gameLogicValues = useMemo(() => {
@@ -113,35 +134,35 @@ export default function GameBoardPage() {
       return {
         isMyTurn: false,
         myCards: [] as Card[],
-        canSuggest: false
+        canSuggest: false,
+        mustExitRoom: false
       };
     }
     
     const isMyTurn = gameState.currentPlayer === playerId;
     const myPlayer = gameState.players.find(p => p.name === playerId);
     const myCards = myPlayer?.hand || [];
+    const mustExitRoom = myPlayer?.mustExit || false;
     const canSuggest = currentLocation 
-      ? canMakeSuggestion(currentLocation) && !hasSuggestedThisTurn
+      ? canMakeSuggestion(currentLocation) && !hasSuggestedThisTurn && !mustExitRoom
       : false;
     
     return {
       isMyTurn,
       myCards,
-      canSuggest
+      canSuggest,
+      mustExitRoom
     };
   }, [gameState, playerId, currentLocation, hasSuggestedThisTurn]);
 
-  // Calculate matching cards for disprove
+  // Get matching cards from disprove prompt (server already calculated them)
   const matchingCardsForDisprove = useMemo(() => {
-    if (!disprovePrompt || !gameLogicValues.myCards) return [];
+    if (!disprovePrompt || !disprovePrompt.matchingCards || !gameLogicValues.myCards) return [];
     
-    const { suspect, weapon, room } = disprovePrompt;
-    return gameLogicValues.myCards.filter(card => {
-      if (card.type === 'SUSPECT' && card.name.toUpperCase() === suspect.toUpperCase()) return true;
-      if (card.type === 'WEAPON' && card.name.toUpperCase() === weapon.toUpperCase()) return true;
-      if (card.type === 'ROOM' && card.name.toUpperCase() === room.toUpperCase()) return true;
-      return false;
-    });
+    // Convert card names from server to card objects
+    return disprovePrompt.matchingCards
+      .map(cardName => gameLogicValues.myCards?.find(c => c.name.toUpperCase() === cardName.toUpperCase()))
+      .filter((card): card is NonNullable<typeof card> => card !== undefined);
   }, [disprovePrompt, gameLogicValues.myCards]);
 
   // Event handlers
@@ -379,6 +400,7 @@ export default function GameBoardPage() {
                 onEndTurn={handleEndTurn}
                 canSuggest={gameLogicValues.canSuggest}
                 canAccuse={canMakeAccusation()}
+                mustExitRoom={gameLogicValues.mustExitRoom}
               />
             </div>
           </main>
@@ -435,6 +457,20 @@ export default function GameBoardPage() {
         weapon={disprovePrompt?.weapon || ''}
         room={disprovePrompt?.room || ''}
         matchingCards={matchingCardsForDisprove}
+        onSelectCard={(cardName: string) => {
+          if (!playerId || !gameId || !disprovePrompt) return;
+          send({
+            type: 'DISPROVE_RESPONSE',
+            gameId,
+            playerId,
+            payload: {
+              card: cardName,
+              chosen: cardName,
+              chosenCard: cardName,
+              suggester: disprovePrompt.suggester
+            }
+          });
+        }}
         onClose={clearDisprovePrompt}
       />
     </div>
